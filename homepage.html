@@ -729,7 +729,7 @@
             fetch('/config.json')
                 .then(r => r.json())
                 .then(config => {
-                    const backendUrl = config.BACKEND_URL || 'https://chat-backend-lya5.onrender.com';
+                    const backendUrl = config.BACKEND_URL || 'https://chat-backend-cg3j.onrender.com';
                     return fetch('/api/token')
                         .then(r => r.json())
                         .then(data => {
