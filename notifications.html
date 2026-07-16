@@ -191,22 +191,54 @@
     <script>
         let currentUserEmail = null;
         let stompClient = null;
+        let reconnectAttempts = 0;
+        const MAX_RECONNECT_DELAY = 30000;
 
         function connectNotificationWebSocket() {
-            // First fetch the config.json
+            let backendUrl = window.location.origin;
+
             fetch('/config.json')
-                .then(r => r.json())
+                .then(r => {
+                    if (!r.ok) throw new Error('config.json not found');
+                    return r.json();
+                })
                 .then(config => {
-                    const backendUrl = config.BACKEND_URL || 'https://chat-backend-cg3j.onrender.com';
-                    // Then fetch the token from the backend
-                    return fetch('/api/token')
-                        .then(r => r.json())
+                    if (config && config.BACKEND_URL) {
+                        backendUrl = config.BACKEND_URL;
+                    }
+                })
+                .catch(err => {
+                    console.warn('Config file not found or invalid, using default backend:', backendUrl);
+                })
+                .finally(() => {
+                    fetch('/api/token')
+                        .then(r => {
+                            if (!r.ok) throw new Error('Token endpoint error');
+                            return r.json();
+                        })
                         .then(data => {
                             const token = data.token || '';
                             let socket = new SockJS(backendUrl + '/ws?token=' + token);
                             stompClient = Stomp.over(socket);
                             stompClient.debug = null;
+
+                            socket.onclose = function(event) {
+                                console.warn('Notification WebSocket closed:', event.code, event.reason);
+                                if (event.code !== 1000) {
+                                    let delay = Math.min(1000 * Math.pow(2, reconnectAttempts), MAX_RECONNECT_DELAY);
+                                    reconnectAttempts++;
+                                    console.log('Reconnecting notifications in ' + delay + 'ms (attempt ' + reconnectAttempts + ')');
+                                    setTimeout(connectNotificationWebSocket, delay);
+                                }
+                            };
+
+                            socket.onerror = function(error) {
+                                console.error('Notification WebSocket error:', error);
+                            };
+
                             stompClient.connect({}, function (frame) {
+                                console.log('Notification WebSocket connected');
+                                reconnectAttempts = 0;
                                 if (currentUserEmail) {
                                     stompClient.subscribe('/topic/notifications/' + currentUserEmail, function (payload) {
                                         let data = JSON.parse(payload.body);
@@ -228,14 +260,19 @@
                                     });
                                 }
                             }, function (error) {
-                                console.error('Notification WebSocket error:', error);
-                                setTimeout(connectNotificationWebSocket, 5000);
+                                console.error('Notification WebSocket STOMP error:', error);
+                                let delay = Math.min(1000 * Math.pow(2, reconnectAttempts), MAX_RECONNECT_DELAY);
+                                reconnectAttempts++;
+                                console.log('Reconnecting notifications in ' + delay + 'ms (attempt ' + reconnectAttempts + ')');
+                                setTimeout(connectNotificationWebSocket, delay);
                             });
+                        })
+                        .catch(err => {
+                            console.error('Failed to fetch Notification WebSocket token:', err);
+                            let delay = Math.min(1000 * Math.pow(2, reconnectAttempts), MAX_RECONNECT_DELAY);
+                            reconnectAttempts++;
+                            setTimeout(connectNotificationWebSocket, delay);
                         });
-                })
-                .catch(err => {
-                    console.error('Failed to initialize WebSocket:', err);
-                    setTimeout(connectNotificationWebSocket, 5000);
                 });
         }
 
@@ -292,14 +329,22 @@
             }
         }
 
-        window.onload = function() {
+        window.onload = function () {
             fetch('/api/current-user')
-                .then(res => res.json())
+                .then(res => {
+                    if (!res.ok) throw new Error('Unauthenticated');
+                    return res.json();
+                })
                 .then(userMap => {
                     if (userMap.email) {
                         currentUserEmail = userMap.email;
                         connectNotificationWebSocket();
+                    } else {
+                        window.location.href = '/login.html';
                     }
+                })
+                .catch(err => {
+                    window.location.href = '/login.html';
                 });
             loadNotifications();
         };
