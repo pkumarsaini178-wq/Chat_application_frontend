@@ -337,20 +337,17 @@
                 <div class="emoji-grid" id="emojiGrid"></div>
             </div>
 
-            <div id="chatInputArea" style="display:none; flex-direction:column; gap:8px; padding: 10px 14px;">
+            <div id="chatInputArea" style="display:none; flex-direction:row; align-items:center; gap:8px; padding: 10px 14px;">
+                <button onclick="toggleEmojiPicker()" class="media-btn" id="emojiBtn" title="Emojis">😀</button>
+                <input type="file" id="mediaInput" accept="image/*,audio/*,video/*" style="display:none;"
+                    onchange="handleMediaUpload(event)">
+                <button onclick="document.getElementById('mediaInput').click()" class="media-btn" title="Attach file">&#128206;</button>
+                
                 <textarea id="chatMessage" placeholder="Type a message..."
-                    onkeydown="handleKeyDown(event)" oninput="handleTypingInput()" autocomplete="off" enterkeyhint="send" rows="1"></textarea>
+                    onkeydown="handleKeyDown(event)" oninput="handleTypingInput()" autocomplete="off" enterkeyhint="send" rows="1" style="flex:1; width:0; min-width:0;"></textarea>
 
-                <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
-                    <div style="display:flex; gap:8px; align-items:center;">
-                        <button onclick="toggleEmojiPicker()" class="media-btn" id="emojiBtn" title="Emojis">😀</button>
-                        <input type="file" id="mediaInput" accept="image/*,audio/*,video/*" style="display:none;"
-                            onchange="handleMediaUpload(event)">
-                        <button onclick="document.getElementById('mediaInput').click()" class="media-btn" title="Attach file">&#128206;</button>
-                        <button onclick="startAudioRecording()" id="micBtn" class="media-btn" title="Voice message">&#127908;</button>
-                    </div>
-                    <button onclick="sendMessage()" id="sendBtn" style="width:auto; padding:8px 20px; background: var(--primary); color: white; border: none; border-radius: 20px; font-weight: 600; font-size: 14px; cursor: pointer; white-space: nowrap;">Send</button>
-                </div>
+                <button onclick="startAudioRecording()" id="micBtn" class="media-btn" title="Voice message">&#127908;</button>
+                <button onclick="sendMessage()" id="sendBtn" style="width:auto; padding:8px 20px; background: var(--primary); color: white; border: none; border-radius: 20px; font-weight: 600; font-size: 14px; cursor: pointer; white-space: nowrap;">Send</button>
             </div>
         </div>
     </div>
