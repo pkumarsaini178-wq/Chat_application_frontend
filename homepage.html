@@ -223,7 +223,50 @@
                 display: none;
             }
         }
+        /* Fullscreen Image Viewer Modal Styles */
+        .image-viewer-modal {
+            display: none;
+            position: fixed;
+            z-index: 20000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .image-viewer-modal.show {
+            opacity: 1;
+        }
+        .image-viewer-modal img {
+            max-width: 90%;
+            max-height: 90%;
+            object-fit: contain;
+            border-radius: var(--radius-sm);
+            box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+            transform: scale(0.95);
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            cursor: zoom-out;
+        }
+        .image-viewer-modal.show img {
+            transform: scale(1);
+        }
+        .chat-msg img {
+            cursor: pointer;
+            transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .chat-msg img:hover {
+            transform: scale(1.02);
+            box-shadow: var(--card-shadow);
+        }
     </style>
+
 
 </head>
 
@@ -1199,7 +1242,7 @@
 
             let mediaContent = '';
             if (msg.messageType === 'IMAGE' && msg.mediaData) {
-                mediaContent = `<img src="${msg.mediaData}" onerror="this.onerror=null; this.src=''; this.alt='[Image missing]';" style="max-width:280px; max-height:300px; object-fit:contain; border-radius:8px; margin-top:6px;"/>`;
+                mediaContent = `<img src="${msg.mediaData}" onerror="this.onerror=null; this.src=''; this.alt='[Image missing]';" ondblclick="openFullScreenImage(this.src)" style="max-width:280px; max-height:300px; object-fit:contain; border-radius:8px; margin-top:6px;"/>`;
             } else if (msg.messageType === 'AUDIO' && msg.mediaData) {
                 mediaContent = `<audio controls src="${msg.mediaData}" onerror="this.onerror=null; this.parentElement.innerHTML += '<br><small style=\\'color:var(--danger)\\'>[Audio missing]</small>';" style="max-width:250px; margin-top:6px;"></audio>`;
             } else if (msg.messageType === 'VIDEO' && msg.mediaData) {
@@ -1314,7 +1357,7 @@
 
             let mediaContent = '';
             if (msg.messageType === 'IMAGE' && msg.mediaData) {
-                mediaContent = '<img src="' + msg.mediaData + '" onerror="this.onerror=null; this.src=\'\'; this.alt=\'[Image missing]\';" style="max-width:280px; max-height:300px; object-fit:contain; border-radius:8px; margin-top:6px;"/>';
+                mediaContent = '<img src="' + msg.mediaData + '" onerror="this.onerror=null; this.src=\'\'; this.alt=\'[Image missing]\';" ondblclick="openFullScreenImage(this.src)" style="max-width:280px; max-height:300px; object-fit:contain; border-radius:8px; margin-top:6px;"/>';
             } else if (msg.messageType === 'AUDIO' && msg.mediaData) {
                 mediaContent = '<audio controls src="' + msg.mediaData + '" style="max-width:250px; margin-top:6px;"></audio>';
             } else if (msg.messageType === 'VIDEO' && msg.mediaData) {
@@ -2021,6 +2064,41 @@
             });
         }
 
+        function openFullScreenImage(src) {
+            const modal = document.getElementById('imageViewerModal');
+            const img = document.getElementById('fullScreenImage');
+            if (!modal || !img) return;
+
+            img.src = src;
+            modal.style.display = 'flex';
+            
+            // Force reflow to trigger opacity transition
+            modal.offsetHeight;
+            
+            modal.classList.add('show');
+        }
+
+        function closeImageViewer() {
+            const modal = document.getElementById('imageViewerModal');
+            if (!modal) return;
+
+            modal.classList.remove('show');
+            setTimeout(() => {
+                if (!modal.classList.contains('show')) {
+                    modal.style.display = 'none';
+                    document.getElementById('fullScreenImage').src = '';
+                }
+            }, 300);
+        }
+
+        // Global keydown listener for Escape key to close modals
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeImageViewer();
+                closeProfileModal();
+            }
+        });
+
     </script>
 
     <!-- Profile Modal Overlay -->
@@ -2045,6 +2123,11 @@
                 <button onclick="logoutUser()" style="width: 100%; background: var(--danger-light); color: var(--danger); border: none;">Logout</button>
             </div>
         </div>
+    </div>
+    <!-- Fullscreen Image Viewer Modal -->
+    <div id="imageViewerModal" class="image-viewer-modal" onclick="closeImageViewer()">
+        <button onclick="closeImageViewer()" style="position: absolute; right: 24px; top: 24px; background: rgba(255, 255, 255, 0.15); border: none; font-size: 24px; color: white; cursor: pointer; width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: background 0.25s, transform 0.25s; z-index: 20001;" onmouseover="this.style.background='rgba(255,255,255,0.3)'; this.style.transform='scale(1.05)';" onmouseout="this.style.background='rgba(255,255,255,0.15)'; this.style.transform='scale(1)';">&times;</button>
+        <img id="fullScreenImage" src="" alt="Fullscreen Image" onclick="event.stopPropagation();"/>
     </div>
 
 </body>
