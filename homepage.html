@@ -273,6 +273,33 @@
             from { opacity: 0; transform: scale(0.95) translateY(4px); }
             to { opacity: 1; transform: scale(1) translateY(0); }
         }
+        .msg-menu-trigger {
+            display: none;
+            position: absolute;
+            bottom: 4px;
+            right: 4px;
+            font-size: 16px;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 2px 6px;
+            border-radius: 4px;
+            line-height: 1;
+            z-index: 10;
+            transition: background 0.15s ease;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
+        .msg-menu-trigger:hover {
+            background: var(--bg-color);
+        }
+        @media (max-width: 768px) {
+            .msg-menu-trigger {
+                display: block;
+            }
+            .chat-msg {
+                cursor: default;
+            }
+        }
     </style>
 
 
@@ -1298,6 +1325,7 @@
                         ${tickHtml}
                     </div>
                     ${mediaContent}
+                    <span class="msg-menu-trigger" onclick="openMsgMenu(event, '${msg.id}', ${isMe}, this.closest('.chat-msg'))">&#8942;</span>
                 </div>
             `;
 
@@ -1398,6 +1426,7 @@
                 quoteHtml +
                 '<div style="display:flex; flex-wrap:wrap; align-items:baseline; gap:4px; text-align:left; width:100%;"><span class="msg-text">' + esc(msg.message || '') + '</span>' + editedHtml + tickHtml + '</div>' +
                 mediaContent +
+                '<span class="msg-menu-trigger" onclick="openMsgMenu(event, \'' + msg.id + '\', ' + isMe + ', this.closest(\'.chat-msg\'))">&#8942;</span>' +
                 '</div>';
         }
 
@@ -1518,7 +1547,7 @@
             if (!msgEl) return;
 
             let ignoreTags = ['IMG', 'AUDIO', 'VIDEO', 'A', 'BUTTON'];
-            let isMediaOrLink = ignoreTags.includes(e.target.tagName) || e.target.closest('.quoted-msg') || e.target.closest('button');
+            let isMediaOrLink = ignoreTags.includes(e.target.tagName) || e.target.closest('.quoted-msg') || e.target.closest('button') || e.target.closest('.msg-menu-trigger');
             if (isMediaOrLink) return;
 
             let msgId = msgEl.getAttribute('data-message-id');
@@ -1531,6 +1560,7 @@
             let senderNameEl = msgEl.querySelector('.chat-time');
             let senderName = senderNameEl ? senderNameEl.innerText.split(' - ')[0] : 'Unknown';
 
+            e.stopPropagation(); // Stop propagation immediately so the document click listener doesn't dismiss the menu
             showContextMenu(msgId, isMe, msgText, senderName, e);
         });
 
@@ -1538,6 +1568,7 @@
             let now = Date.now();
             if (now - lastMenuOpenTime < 100) return; // Prevent double-trigger
             lastMenuOpenTime = now;
+            menuOpenTimestamp = now;
 
             let existing = document.getElementById('msgContextMenu');
             if (existing) existing.remove();
@@ -1638,7 +1669,8 @@
             let btn = document.createElement('button');
             btn.style.cssText = 'background:none; border:none; padding:8px 12px; color:var(--text-main); font-size:13px; font-weight:500; text-align:left; cursor:pointer; width:100%; border-radius:6px; box-shadow:none; transition: background 0.15s ease, color 0.15s ease;';
             btn.innerText = text;
-            btn.onclick = function() {
+            btn.onclick = function(e) {
+                e.stopPropagation();
                 onClick();
                 let m = document.getElementById('msgContextMenu');
                 if (m) m.remove();
@@ -1648,8 +1680,22 @@
             return btn;
         }
 
+        // Track when menu was last opened to prevent immediate dismiss
+        let menuOpenTimestamp = 0;
+
+        function openMsgMenu(event, msgId, isMe, msgEl) {
+            event.stopPropagation();
+            if (!msgId || msgId === '-1' || msgId.startsWith('send_')) return;
+            let msgTextEl = msgEl.querySelector('.msg-text');
+            let msgText = msgTextEl ? msgEl.querySelector('.msg-text').innerText : '';
+            let senderNameEl = msgEl.querySelector('.chat-time');
+            let senderName = senderNameEl ? senderNameEl.innerText.split(' - ')[0] : 'Unknown';
+            showContextMenu(msgId, isMe, msgText, senderName, event);
+        }
+
         // Close context menu on clicking elsewhere
         document.addEventListener('click', function(e) {
+            if (Date.now() - menuOpenTimestamp < 300) return; // Prevent immediate dismiss
             let menu = document.getElementById('msgContextMenu');
             if (menu && !menu.contains(e.target)) {
                 menu.remove();
@@ -1732,6 +1778,8 @@
             let distance = Math.sqrt(distanceX * distanceX + distanceY * distanceY);
             let timeElapsed = Date.now() - clickStartTime;
 
+            let isTouch = e.type === 'touchend';
+
             if (isSwiping && diffX > 60) {
                 let msgId = swipeTarget.getAttribute('data-message-id');
                 let msgText = swipeTarget.getAttribute('data-message-text') || '';
@@ -1747,11 +1795,11 @@
                 }
 
                 startReply(msgId, senderName, msgText);
-            } else if (!isSwiping && distance < 8 && timeElapsed < 300) {
-                // This is a direct click/tap on the message
+            } else if (isTouch && !isSwiping && distance < 12 && timeElapsed < 500) {
+                // This is a direct touch tap on mobile
                 let target = clickStartTarget || e.target;
                 let ignoreTags = ['IMG', 'AUDIO', 'VIDEO', 'A', 'BUTTON'];
-                let isMediaOrLink = ignoreTags.includes(target.tagName) || target.closest('.quoted-msg') || target.closest('button');
+                let isMediaOrLink = ignoreTags.includes(target.tagName) || target.closest('.quoted-msg') || target.closest('button') || target.closest('.msg-menu-trigger');
                 
                 if (!isMediaOrLink) {
                     let msgId = swipeTarget.getAttribute('data-message-id');
@@ -1768,6 +1816,7 @@
                         preventDefault: function() {}
                     };
                     showContextMenu(msgId, isMe, msgText, senderName, fakeEvent);
+                    if (e.cancelable) e.preventDefault(); // Prevents synthetic click on mobile!
                 }
             }
 
