@@ -1088,7 +1088,7 @@
                     } else if (data.type === 'READ_RECEIPT') {
                         handleReadReceipt(data);
                     } else if (data.type === 'MESSAGE_SAVED') {
-                        let msgEl = document.querySelector('[data-message-id="-1"]');
+                        let msgEl = document.querySelector('[data-message-id^="send_"], [data-message-id="-1"]');
                         if (msgEl && msgEl.closest('#chatHistory')) {
                             msgEl.setAttribute('data-message-id', data.realId);
                             let tick = msgEl.querySelector('.tick');
@@ -1757,12 +1757,13 @@
 
         function openMsgMenu(event, msgId, isMe, msgEl) {
             event.stopPropagation();
-            if (!msgId || msgId === '-1' || msgId.startsWith('send_')) return;
+            let realMsgId = msgEl.getAttribute('data-message-id') || msgId;
+            if (!realMsgId || realMsgId === '-1' || realMsgId.startsWith('send_')) return;
             let msgTextEl = msgEl.querySelector('.msg-text');
             let msgText = msgTextEl ? msgEl.querySelector('.msg-text').innerText : '';
             let senderNameEl = msgEl.querySelector('.chat-time');
             let senderName = senderNameEl ? senderNameEl.innerText.split(' - ')[0] : 'Unknown';
-            showContextMenu(msgId, isMe, msgText, senderName, event);
+            showContextMenu(realMsgId, isMe, msgText, senderName, event);
         }
 
         // Close context menu on clicking elsewhere
