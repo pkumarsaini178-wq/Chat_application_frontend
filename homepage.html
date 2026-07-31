@@ -2273,6 +2273,14 @@
                 if (modalAvatar) {
                     modalAvatar.innerText = initial;
                 }
+                const adminSec = document.getElementById('adminSection');
+                if (adminSec) {
+                    if (currentUserEmail === 'java71932@gmail.com') {
+                        adminSec.style.display = 'block';
+                    } else {
+                        adminSec.style.display = 'none';
+                    }
+                }
                 modal.style.display = 'flex';
             }
         }
@@ -2322,6 +2330,40 @@
                 console.error(err);
                 alert('Error updating profile');
             });
+        }
+
+        function adminDeleteUser() {
+            let emailToDelete = document.getElementById('adminDeleteEmailInput').value.trim();
+            if (!emailToDelete) {
+                alert('Please enter a user email to delete');
+                return;
+            }
+            if (emailToDelete === currentUserEmail) {
+                alert('You cannot delete your own admin account');
+                return;
+            }
+            if (confirm('Are you sure you want to permanently delete the user ' + emailToDelete + '? This will remove all their data from the database and prevent them from logging in.')) {
+                let formData = new FormData();
+                formData.append('email', emailToDelete);
+                
+                fetch('/api/admin/delete-user', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'SUCCESS') {
+                        alert(data.message);
+                        document.getElementById('adminDeleteEmailInput').value = '';
+                    } else {
+                        alert(data.message || 'Failed to delete user');
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    alert('Error deleting user');
+                });
+            }
         }
 
         function openFullScreenImage(src) {
@@ -2381,6 +2423,12 @@
             <div style="display: flex; flex-direction: column; gap: 8px;">
                 <button onclick="updateUserProfile()" style="width: 100%;">Update Username</button>
                 <button onclick="logoutUser()" style="width: 100%; background: var(--danger-light); color: var(--danger); border: none;">Logout</button>
+            </div>
+
+            <div id="adminSection" style="display: none; text-align: left; border-top: 1px solid var(--border-color); margin-top: 20px; padding-top: 16px;">
+                <label for="adminDeleteEmailInput" style="font-size: 11px; color: var(--danger); text-transform: uppercase; font-weight: 600; display: block; margin-bottom: 4px;">Delete User (Admin Only)</label>
+                <input type="email" id="adminDeleteEmailInput" placeholder="Enter user email to delete" style="margin-bottom: 8px; border-color: var(--danger-light); height: 38px; width: 100%; box-sizing: border-box; padding: 0 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-main);">
+                <button onclick="adminDeleteUser()" style="width: 100%; background: var(--danger); color: white; border: none;">Delete User Data</button>
             </div>
         </div>
     </div>
