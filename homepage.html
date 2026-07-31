@@ -2262,6 +2262,8 @@
             }
         }
 
+        let adminUsersData = [];
+
         function openProfileModal() {
             const modal = document.getElementById('profileModal');
             if (modal) {
@@ -2273,14 +2275,29 @@
                 if (modalAvatar) {
                     modalAvatar.innerText = initial;
                 }
-                const adminSec = document.getElementById('adminSection');
-                if (adminSec) {
-                    if (currentUserEmail === 'java71932@gmail.com') {
-                        adminSec.style.display = 'block';
-                    } else {
-                        adminSec.style.display = 'none';
-                    }
-                }
+                
+                fetch('/api/admin/check')
+                    .then(res => res.json())
+                    .then(data => {
+                        const adminBtn = document.getElementById('openAdminPanelBtn');
+                        const adminSec = document.getElementById('adminSection');
+                        if (adminBtn) {
+                            if (data.isAdmin) {
+                                adminBtn.style.display = 'block';
+                            } else {
+                                adminBtn.style.display = 'none';
+                            }
+                        }
+                        if (adminSec) {
+                            if (data.isAdmin) {
+                                adminSec.style.display = 'block';
+                            } else {
+                                adminSec.style.display = 'none';
+                            }
+                        }
+                    })
+                    .catch(() => {});
+
                 modal.style.display = 'flex';
             }
         }
@@ -2290,6 +2307,205 @@
             if (modal) {
                 modal.style.display = 'none';
             }
+        }
+
+        function openAdminPanel() {
+            closeProfileModal();
+            const adminModal = document.getElementById('adminPanelModal');
+            if (adminModal) {
+                adminModal.style.display = 'flex';
+                loadAdminUsers();
+            }
+        }
+
+        function closeAdminPanel() {
+            const adminModal = document.getElementById('adminPanelModal');
+            if (adminModal) {
+                adminModal.style.display = 'none';
+            }
+        }
+
+        function loadAdminUsers() {
+            fetch('/api/admin/users')
+                .then(res => {
+                    if (!res.ok) throw new Error('Unauthorized');
+                    return res.json();
+                })
+                .then(data => {
+                    adminUsersData = data;
+                    renderAdminUsers(data);
+                })
+                .catch(err => {
+                    console.error(err);
+                    alert('Failed to load admin user data.');
+                });
+        }
+
+        function renderAdminUsers(users) {
+            const tbody = document.getElementById('adminUsersTbody');
+            if (!tbody) return;
+
+            let totalCount = users.length;
+            let activeCount = 0;
+            let blockedCount = 0;
+
+            tbody.innerHTML = '';
+
+            users.forEach(user => {
+                let email = user.useremail || '';
+                let username = user.username || 'No Name';
+                let role = user.role || 'USER';
+                let isBlocked = Boolean(user.isBlocked);
+                let blockExpiry = user.blockExpiry;
+
+                if (isBlocked) {
+                    blockedCount++;
+                } else {
+                    activeCount++;
+                }
+
+                let isSelfOrAdmin = (role === 'ADMIN');
+
+                let statusText = isBlocked ? 'Blocked' : 'Active';
+                let statusClass = isBlocked ? 'blocked' : 'active';
+
+                let expiryDisplay = '-';
+                if (isBlocked && blockExpiry) {
+                    expiryDisplay = new Date(blockExpiry).toLocaleString();
+                } else if (isBlocked) {
+                    expiryDisplay = '1 Year (Active)';
+                }
+
+                let row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <div class="profile" style="width:32px; height:32px; font-size:14px;">${esc(username.charAt(0).toUpperCase())}</div>
+                            <div>
+                                <div style="font-weight:600; color:var(--text-main);">${esc(username)}</div>
+                                <div style="font-size:11px; color:var(--text-secondary);">${esc(email)}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <span class="role-badge ${role.toLowerCase()}">${esc(role)}</span>
+                    </td>
+                    <td>
+                        <span class="status-badge ${statusClass}">${statusText}</span>
+                    </td>
+                    <td style="font-size:11px; color:var(--text-secondary);">${esc(expiryDisplay)}</td>
+                    <td>
+                        <div class="admin-action-btns">
+                            ${isSelfOrAdmin ? `<span style="font-size:11px; color:var(--text-muted); font-style:italic;">Protected Admin</span>` : `
+                                ${isBlocked ? `
+                                    <button class="admin-btn-unblock" onclick="adminUnblockUser('${esc(email)}')">🟢 Unblock</button>
+                                ` : `
+                                    <button class="admin-btn-block" onclick="adminBlockUser('${esc(email)}')">🚫 Block (1 Year)</button>
+                                `}
+                                <button class="admin-btn-delete" onclick="adminDeleteUserAccount('${esc(email)}')">🗑️ Delete</button>
+                            `}
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+
+            document.getElementById('statTotalUsers').innerText = totalCount;
+            document.getElementById('statActiveUsers').innerText = activeCount;
+            document.getElementById('statBlockedUsers').innerText = blockedCount;
+        }
+
+        function filterAdminUsers() {
+            let query = document.getElementById('adminSearchInput').value.toLowerCase().trim();
+            if (!query) {
+                renderAdminUsers(adminUsersData);
+                return;
+            }
+            let filtered = adminUsersData.filter(user => {
+                let name = (user.username || '').toLowerCase();
+                let email = (user.useremail || '').toLowerCase();
+                return name.includes(query) || email.includes(query);
+            });
+            renderAdminUsers(filtered);
+        }
+
+        function adminBlockUser(email) {
+            if (!confirm('Are you sure you want to block ' + email + ' for 1 year? This user will be immediately logged out and blocked from logging in.')) {
+                return;
+            }
+            let formData = new FormData();
+            formData.append('email', email);
+            formData.append('days', 365);
+
+            fetch('/api/admin/block-user', {
+                method: 'POST',
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'SUCCESS') {
+                    showToast(data.message, 'success');
+                    loadAdminUsers();
+                } else {
+                    alert(data.message || 'Failed to block user');
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                alert('Error blocking user');
+            });
+        }
+
+        function adminUnblockUser(email) {
+            if (!confirm('Are you sure you want to unblock ' + email + '?')) {
+                return;
+            }
+            let formData = new FormData();
+            formData.append('email', email);
+
+            fetch('/api/admin/unblock-user', {
+                method: 'POST',
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'SUCCESS') {
+                    showToast(data.message, 'success');
+                    loadAdminUsers();
+                } else {
+                    alert(data.message || 'Failed to unblock user');
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                alert('Error unblocking user');
+            });
+        }
+
+        function adminDeleteUserAccount(email) {
+            if (!confirm('CRITICAL WARNING: Permanently delete account ' + email + '? This will erase all user data, messages, and tokens. This action cannot be undone.')) {
+                return;
+            }
+            let formData = new FormData();
+            formData.append('email', email);
+
+            fetch('/api/admin/delete-user', {
+                method: 'POST',
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'SUCCESS') {
+                    showToast(data.message, 'success');
+                    loadAdminUsers();
+                } else {
+                    alert(data.message || 'Failed to delete user');
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                alert('Error deleting user');
+            });
         }
 
         function updateUserProfile() {
@@ -2398,6 +2614,7 @@
             if (e.key === 'Escape') {
                 closeImageViewer();
                 closeProfileModal();
+                closeAdminPanel();
             }
         });
 
@@ -2422,6 +2639,7 @@
 
             <div style="display: flex; flex-direction: column; gap: 8px;">
                 <button onclick="updateUserProfile()" style="width: 100%;">Update Username</button>
+                <button id="openAdminPanelBtn" onclick="openAdminPanel()" style="display: none; width: 100%; background: var(--primary-gradient); color: white; border: none; font-weight: 600;">🛡️ Open Admin Panel</button>
                 <button onclick="logoutUser()" style="width: 100%; background: var(--danger-light); color: var(--danger); border: none;">Logout</button>
             </div>
 
@@ -2432,6 +2650,58 @@
             </div>
         </div>
     </div>
+    <!-- Admin Panel Modal Overlay -->
+    <div id="adminPanelModal" class="modal" style="display: none; position: fixed; z-index: 10001; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5); justify-content: center; align-items: center;">
+        <div class="admin-modal-content">
+            <div class="admin-header">
+                <h2>
+                    <span style="font-size: 22px;">🛡️</span> Admin Control Panel
+                    <span class="role-badge admin" style="font-size: 10px; margin-left: 8px;">Super Admin</span>
+                </h2>
+                <button onclick="closeAdminPanel()" style="background: none; border: none; font-size: 24px; color: var(--text-secondary); cursor: pointer; padding: 0;">&times;</button>
+            </div>
+            
+            <div class="admin-stats-grid">
+                <div class="admin-stat-card">
+                    <span id="statTotalUsers" class="stat-val">0</span>
+                    <span class="stat-lbl">Total Registered Users</span>
+                </div>
+                <div class="admin-stat-card">
+                    <span id="statActiveUsers" class="stat-val" style="color: #27ae60;">0</span>
+                    <span class="stat-lbl">Active Users</span>
+                </div>
+                <div class="admin-stat-card">
+                    <span id="statBlockedUsers" class="stat-val" style="color: #e74c3c;">0</span>
+                    <span class="stat-lbl">Blocked Users</span>
+                </div>
+            </div>
+
+            <div class="admin-body">
+                <div class="admin-search-bar">
+                    <input type="text" id="adminSearchInput" oninput="filterAdminUsers()" placeholder="Search user by username or email address...">
+                    <button onclick="loadAdminUsers()" style="width: auto; padding: 0 16px; font-size: 13px; font-weight: 600;">🔄 Refresh</button>
+                </div>
+
+                <div class="admin-users-table-container">
+                    <table class="admin-users-table">
+                        <thead>
+                            <tr>
+                                <th>User / Email</th>
+                                <th>Role</th>
+                                <th>Status</th>
+                                <th>Block Expiry</th>
+                                <th>Admin Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="adminUsersTbody">
+                            <!-- Dynamically loaded -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Fullscreen Image Viewer Modal -->
     <div id="imageViewerModal" class="image-viewer-modal" onclick="closeImageViewer()">
         <button onclick="closeImageViewer()" style="position: absolute; right: 24px; top: 24px; background: rgba(255, 255, 255, 0.15); border: none; font-size: 24px; color: white; cursor: pointer; width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: background 0.25s, transform 0.25s; z-index: 20001;" onmouseover="this.style.background='rgba(255,255,255,0.3)'; this.style.transform='scale(1.05)';" onmouseout="this.style.background='rgba(255,255,255,0.15)'; this.style.transform='scale(1)';">&times;</button>
