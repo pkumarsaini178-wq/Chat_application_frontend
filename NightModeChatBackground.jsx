@@ -1,331 +1,326 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
-import './NightModeChatBackground.css';
+import React, { useEffect, useMemo, useState } from 'react';
+import Star from './Star.jsx';
+import Cloud from './Cloud.jsx';
+import Moon from './Moon.jsx';
+import ChatUI from './ChatUI.jsx';
 
-// Helper Easing: easeInOutQuad (t < 0.5 ? 2*t*t : 1 - (-2*t + 2)^2 / 2)
-const easeInOutQuad = (t) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
+const RISE_DURATION_MS = 1800000; // 30 minutes
+const DAY_HOLD_MS = 300000; // 5 minutes
+
+const ease = (t) =>
+  t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+
+const randomBetween = (min, max) => Math.random() * (max - min) + min;
+
+const generateStars = (count, minSize, maxSize, minDrift, maxDrift) => {
+  const stars = [];
+  for (let i = 0; i < count; i++) {
+    stars.push({
+      id: i,
+      left: randomBetween(0, 95),
+      top: randomBetween(0, 55),
+      size: randomBetween(minSize, maxSize),
+      twinkleDuration: randomBetween(2, 5),
+      twinkleDelay: randomBetween(0, 3),
+      driftDuration: randomBetween(minDrift, maxDrift),
+    });
+  }
+  return stars;
+};
+
+const CLOUD_SPECS = [
+  { id: 'a', top: '20%', left: '6%', scale: 1.1, driftDuration: 34 },
+  { id: 'b', top: '30%', left: '55%', scale: 0.85, driftDuration: 28 },
+  { id: 'c', top: '14%', left: '72%', scale: 0.95, driftDuration: 30 },
+];
+
+const KEYFRAMES = `
+@keyframes twinkle {
+  0%, 100% { opacity: 0.15; }
+  50% { opacity: 1; }
+}
+@keyframes drift {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(14px); }
+}
+@keyframes shoot {
+  0% { transform: translate(0, 0); opacity: 0; }
+  5% { opacity: 1; }
+  20% { transform: translate(-160px, 90px); opacity: 0; }
+  100% { opacity: 0; }
+}
+@keyframes cloudDrift {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(60px); }
+}
+.chat-input::placeholder {
+  color: #5C6270;
+}
+`;
+
+const REDUCED_MOTION_STAGE = {
+  moonBottom: 220,
+  glowBottom: 196,
+  dawnOpacity: 0,
+  dayOpacity: 0,
+  starOpacity: 1,
+  hazeOpacity: 1,
+};
+
+const STAR_LAYER_STYLE = {
+  position: 'absolute',
+  top: 0,
+  left: 0,
+  right: 0,
+  bottom: 0,
+  zIndex: 2,
+  pointerEvents: 'none',
+};
 
 export default function NightModeChatBackground({
-  riseDurationMs = 1800000, // 30 minutes default
-  dayHoldMs = 300000,        // 5 minutes default
-  reducedMotion = false,     // testing override flag
-  speedMultiplier = 1,       // QA speed multiplier (e.g. 60x speed for testing)
-  initialMessages = [
-    { id: 1, sender: 'them', text: 'Hey there! How is the night sky looking over your city?', time: '11:42 PM' },
-    { id: 2, sender: 'me', text: 'It looks absolutely stunning! The moon and stars are twinkling brightly. ✨', time: '11:43 PM' },
-    { id: 3, sender: 'them', text: 'That sounds magical! Enjoy the peaceful night view. 🌙', time: '11:44 PM' }
-  ]
+  riseDurationMs = RISE_DURATION_MS,
+  dayHoldMs = DAY_HOLD_MS,
+  speedMultiplier = 1,
+  reducedMotion = null,
 }) {
-  const [cycleTimeMs, setCycleTimeMs] = useState(0);
+  const [isReducedMotion] = useState(() => {
+    if (reducedMotion === true) return true;
+    if (reducedMotion === false) return false;
+    return (
+      typeof window !== 'undefined' &&
+      !!window.matchMedia &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    );
+  });
+
+  const backStars = useMemo(
+    () => generateStars(35, 0.5, 1.2, 20, 30),
+    []
+  );
+  const frontStars = useMemo(
+    () => generateStars(20, 1.2, 2.2, 12, 22),
+    []
+  );
+
+  const [stage, setStage] = useState(
+    isReducedMotion
+      ? REDUCED_MOTION_STAGE
+      : {
+          moonBottom: -56,
+          glowBottom: -80,
+          dawnOpacity: 0,
+          dayOpacity: 0,
+          starOpacity: 1,
+          hazeOpacity: 1,
+        }
+  );
+
   const [shootingStars, setShootingStars] = useState([]);
-  const [messages, setMessages] = useState(initialMessages);
-  const [inputMsg, setInputMsg] = useState('');
 
-  const animFrameRef = useRef(null);
-  const lastTimestampRef = useRef(null);
-
-  // Check system prefers-reduced-motion media query
-  const isReducedMotion = useMemo(() => {
-    if (reducedMotion) return true;
-    if (typeof window !== 'undefined' && window.matchMedia) {
-      return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    }
-    return false;
-  }, [reducedMotion]);
-
-  // Generate 35 Back Stars and 20 Front Stars once
-  const starsData = useMemo(() => {
-    const generateStars = (count, minSize, maxSize) => {
-      const list = [];
-      for (let i = 0; i < count; i++) {
-        list.push({
-          id: i,
-          top: `${(Math.random() * 75).toFixed(2)}%`,
-          left: `${(Math.random() * 96 + 2).toFixed(2)}%`,
-          size: `${(Math.random() * (maxSize - minSize) + minSize).toFixed(2)}px`,
-          twinkleDuration: `${(Math.random() * 3 + 2).toFixed(2)}s`,
-          twinkleDelay: `${(Math.random() * 5).toFixed(2)}s`,
-          driftDuration: `${(Math.random() * 4 + 4).toFixed(2)}s`,
-          driftDelay: `${(Math.random() * 5).toFixed(2)}s`,
-          driftOffset: `${(Math.random() * 6 - 3).toFixed(2)}px`
-        });
-      }
-      return list;
-    };
-    return {
-      back: generateStars(35, 0.5, 1.2),
-      front: generateStars(20, 1.2, 2.2)
-    };
-  }, []);
-
-  // Total cycle duration
-  const totalCycleMs = useMemo(() => riseDurationMs + dayHoldMs, [riseDurationMs, dayHoldMs]);
-
-  // Main animation loop driven by requestAnimationFrame & Page Visibility API
   useEffect(() => {
-    if (isReducedMotion) return;
+    if (isReducedMotion) {
+      setStage(REDUCED_MOTION_STAGE);
+      return;
+    }
 
-    const animate = (timestamp) => {
-      if (lastTimestampRef.current === null) {
-        lastTimestampRef.current = timestamp;
+    const effectiveRise = riseDurationMs / speedMultiplier;
+    const effectiveHold = dayHoldMs / speedMultiplier;
+    const totalMs = effectiveRise + effectiveHold;
+
+    let rafId = null;
+    let startTime = performance.now();
+    let hiddenElapsed = 0;
+
+    const tick = () => {
+      const elapsed = performance.now() - startTime;
+      const position = elapsed % totalMs;
+      const t = position <= effectiveRise ? position / effectiveRise : 1;
+
+      const eased = ease(t);
+      const moonBottom = -56 + eased * 300;
+      const glowBottom = -80 + eased * 300;
+
+      let dawnOpacity = 0;
+      let dayOpacity = 0;
+      let starOpacity = 1;
+      let hazeOpacity = 1;
+
+      if (t >= 0.7 && t <= 0.9) {
+        const dt = (t - 0.7) / 0.2;
+        dawnOpacity = dt;
+        starOpacity = Math.max(0, 1 - dt * 1.5);
+        hazeOpacity = Math.max(0, 1 - dt * 1.5);
+      } else if (t > 0.9) {
+        const dt = (t - 0.9) / 0.1;
+        dawnOpacity = Math.max(0, 1 - dt);
+        dayOpacity = dt;
+        starOpacity = 0;
+        hazeOpacity = 0;
       }
-      const delta = (timestamp - lastTimestampRef.current) * speedMultiplier;
-      lastTimestampRef.current = timestamp;
 
-      setCycleTimeMs((prev) => (prev + delta) % totalCycleMs);
-      animFrameRef.current = requestAnimationFrame(animate);
+      setStage({
+        moonBottom,
+        glowBottom,
+        dawnOpacity,
+        dayOpacity,
+        starOpacity,
+        hazeOpacity,
+      });
+
+      rafId = requestAnimationFrame(tick);
     };
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden') {
-        if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
-        lastTimestampRef.current = null;
+        cancelAnimationFrame(rafId);
+        hiddenElapsed = performance.now() - startTime;
       } else {
-        lastTimestampRef.current = null;
-        animFrameRef.current = requestAnimationFrame(animate);
+        startTime = performance.now() - hiddenElapsed;
+        rafId = requestAnimationFrame(tick);
       }
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    animFrameRef.current = requestAnimationFrame(animate);
+    rafId = requestAnimationFrame(tick);
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+      cancelAnimationFrame(rafId);
     };
-  }, [totalCycleMs, speedMultiplier, isReducedMotion]);
+  }, [isReducedMotion, riseDurationMs, dayHoldMs, speedMultiplier]);
 
-  // Shooting stars random generator loop
   useEffect(() => {
     if (isReducedMotion) return;
 
-    let timer;
-    const scheduleShootingStar = () => {
-      const nextDelay = Math.random() * 20000 + 15000; // 15s to 35s
+    let timer = null;
+    const schedule = () => {
       timer = setTimeout(() => {
-        const id = Date.now() + Math.random();
-        const top = Math.random() * 35 + 5; // upper sky 5%-40%
-        const left = Math.random() * 60 + 10;
+        const id = `${Date.now()}-${Math.random()}`;
+        const top = randomBetween(5, 35);
+        const left = randomBetween(40, 80);
         setShootingStars((prev) => [...prev, { id, top, left }]);
-
-        // Remove from DOM after 1.8s
         setTimeout(() => {
           setShootingStars((prev) => prev.filter((s) => s.id !== id));
         }, 1800);
-
-        scheduleShootingStar();
-      }, nextDelay);
+        schedule();
+      }, randomBetween(15000, 35000));
     };
 
-    scheduleShootingStar();
+    schedule();
     return () => clearTimeout(timer);
   }, [isReducedMotion]);
 
-  // Compute Current Animation Stage & Opacities
-  const { moonTopPercent, haloOpacity, hazeOpacity, starOpacity, dawnOpacity, dayOpacity, isDay } = useMemo(() => {
-    if (isReducedMotion) {
-      return {
-        moonTopPercent: 22,
-        haloOpacity: 1,
-        hazeOpacity: 1,
-        starOpacity: 1,
-        dawnOpacity: 0,
-        dayOpacity: 0,
-        isDay: false
-      };
-    }
-
-    let rawProgress = 0;
-    if (cycleTimeMs <= riseDurationMs) {
-      rawProgress = cycleTimeMs / riseDurationMs; // 0 to 1
-    } else {
-      // Day hold phase (5 mins)
-      rawProgress = 1;
-    }
-
-    // Eased vertical progress for Moonrise (120% below frame up to 20% near top)
-    const easedProgress = easeInOutQuad(rawProgress);
-    const moonTopPercent = 120 - easedProgress * 100; // 120% -> 20%
-
-    // Sunrise stages:
-    // 1. Last 30% to 10% of rise (rawProgress: 0.70 to 0.90) -> Dawn Fades In, Stars/Haze Fade Out
-    // 2. Final 10% (rawProgress: 0.90 to 1.0) -> Dawn Fades Out, Day Fades In Fully
-    let hazeOpacity = 1;
-    let starOpacity = 1;
-    let dawnOpacity = 0;
-    let dayOpacity = 0;
-
-    if (rawProgress >= 0.70 && rawProgress < 0.90) {
-      const p = (rawProgress - 0.70) / 0.20; // 0 to 1
-      dawnOpacity = p;
-      starOpacity = 1 - p;
-      hazeOpacity = 1 - p;
-    } else if (rawProgress >= 0.90) {
-      const p = (rawProgress - 0.90) / 0.10; // 0 to 1
-      dawnOpacity = 1 - p;
-      dayOpacity = p;
-      starOpacity = 0;
-      hazeOpacity = 0;
-    }
-
-    const isDay = dayOpacity > 0.5;
-    const haloOpacity = 1 - Math.min(1, dayOpacity + dawnOpacity);
-
-    return {
-      moonTopPercent,
-      haloOpacity,
-      hazeOpacity,
-      starOpacity,
-      dawnOpacity,
-      dayOpacity,
-      isDay
-    };
-  }, [cycleTimeMs, riseDurationMs, isReducedMotion]);
-
-  const handleSendMessage = (e) => {
-    e.preventDefault();
-    if (!inputMsg.trim()) return;
-    const newMsg = {
-      id: Date.now(),
-      sender: 'me',
-      text: inputMsg.trim(),
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    };
-    setMessages((prev) => [...prev, newMsg]);
-    setInputMsg('');
-  };
+  const animate = !isReducedMotion;
 
   return (
-    <div className={`night-mode-chat-container ${isDay ? 'is-day-mode' : ''}`}>
-      {/* Sky Background Layer */}
-      <div className="sky-background">
-        {/* Horizon Haze */}
-        <div className="horizon-haze" style={{ opacity: hazeOpacity }} />
+    <div
+      style={{
+        position: 'relative',
+        width: '100%',
+        height: 520,
+        minHeight: 400,
+        borderRadius: 16,
+        overflow: 'hidden',
+        background: 'linear-gradient(#15171C 45%, #16202C 85%, #1B2838 100%)',
+      }}
+    >
+      <style>{KEYFRAMES}</style>
 
-        {/* Back Star Layer (~35 Stars) */}
-        <div className="star-layer back" style={{ opacity: starOpacity }}>
-          {starsData.back.map((star) => (
-            <div
-              key={`back-${star.id}`}
-              className="star"
-              style={{
-                top: star.top,
-                left: star.left,
-                width: star.size,
-                height: star.size,
-                '--twinkle-duration': star.twinkleDuration,
-                '--twinkle-delay': star.twinkleDelay,
-                '--drift-duration': star.driftDuration,
-                '--drift-delay': star.driftDelay,
-                '--drift-offset': star.driftOffset
-              }}
-            />
-          ))}
-        </div>
+      <div
+        style={{
+          position: 'absolute',
+          left: 0,
+          right: 0,
+          bottom: 0,
+          height: 120,
+          zIndex: 1,
+          background:
+            'linear-gradient(rgba(30,45,65,0) 0%, rgba(45,65,90,0.35) 100%)',
+          opacity: stage.hazeOpacity,
+          pointerEvents: 'none',
+        }}
+      />
 
-        {/* Front Star Layer (~20 Stars) */}
-        <div className="star-layer front" style={{ opacity: starOpacity }}>
-          {starsData.front.map((star) => (
-            <div
-              key={`front-${star.id}`}
-              className="star"
-              style={{
-                top: star.top,
-                left: star.left,
-                width: star.size,
-                height: star.size,
-                boxShadow: '0 0 4px #ffffff',
-                '--twinkle-duration': star.twinkleDuration,
-                '--twinkle-delay': star.twinkleDelay,
-                '--drift-duration': star.driftDuration,
-                '--drift-delay': star.driftDelay,
-                '--drift-offset': star.driftOffset
-              }}
-            />
-          ))}
-        </div>
+      <div
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 1,
+          background: '#F4B183',
+          opacity: stage.dawnOpacity,
+          transition: 'opacity 8s ease',
+          pointerEvents: 'none',
+        }}
+      />
 
-        {/* Shooting Stars */}
-        {shootingStars.map((s) => (
-          <div key={s.id} className="shooting-star" style={{ top: `${s.top}%`, left: `${s.left}%` }} />
+      <div
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 1,
+          background: '#FFFFFF',
+          opacity: stage.dayOpacity,
+          transition: 'opacity 8s ease',
+          pointerEvents: 'none',
+        }}
+      />
+
+      <div style={{ ...STAR_LAYER_STYLE, opacity: stage.starOpacity }}>
+        {backStars.map((star) => (
+          <Star key={`back-${star.id}`} {...star} animate={animate} />
         ))}
-
-        {/* 3D Moon & Halo Glow */}
-        <div className="moon-wrapper" style={{ top: `${moonTopPercent}%` }}>
-          <div className="moon-halo" style={{ opacity: haloOpacity }} />
-          <div className="moon">
-            <div className="crater crater-1" />
-            <div className="crater crater-2" />
-            <div className="crater crater-3" />
-            <div className="crater crater-4" />
-          </div>
-        </div>
-
-        {/* 3D Puffy Clouds (3 Permanent Overlapping Circles Puffs) */}
-        <div className="cloud-layer">
-          <div className="cloud cloud-1">
-            <div className="cloud-puff" style={{ width: '48px', height: '48px' }} />
-            <div className="cloud-puff" style={{ width: '64px', height: '64px', marginLeft: '-18px' }} />
-            <div className="cloud-puff" style={{ width: '42px', height: '42px', marginLeft: '-16px' }} />
-          </div>
-          <div className="cloud cloud-2">
-            <div className="cloud-puff" style={{ width: '56px', height: '56px' }} />
-            <div className="cloud-puff" style={{ width: '78px', height: '78px', marginLeft: '-22px' }} />
-            <div className="cloud-puff" style={{ width: '52px', height: '52px', marginLeft: '-20px' }} />
-          </div>
-          <div className="cloud cloud-3">
-            <div className="cloud-puff" style={{ width: '42px', height: '42px' }} />
-            <div className="cloud-puff" style={{ width: '58px', height: '58px', marginLeft: '-16px' }} />
-            <div className="cloud-puff" style={{ width: '38px', height: '38px', marginLeft: '-14px' }} />
-          </div>
-        </div>
-
-        {/* Dawn & Day Overlays */}
-        <div className="dawn-overlay" style={{ opacity: dawnOpacity }} />
-        <div className="day-overlay" style={{ opacity: dayOpacity }} />
       </div>
 
-      {/* Chat UI Layer */}
-      <div className="chat-ui-layer">
-        {/* Frosted Glass Header */}
-        <div className="chat-header">
-          <div className="chat-header-avatar">L</div>
-          <div className="chat-header-info">
-            <h4>Luna Sky</h4>
-            <p>
-              <span className="status-dot-indicator" /> Online - Night Sky
-            </p>
-          </div>
-        </div>
+      <div style={{ ...STAR_LAYER_STYLE, opacity: stage.starOpacity }}>
+        {frontStars.map((star) => (
+          <Star key={`front-${star.id}`} {...star} animate={animate} />
+        ))}
+      </div>
 
-        {/* Messages List Area */}
-        <div className="chat-messages-area">
-          {messages.map((m) => (
-            <div key={m.id} className={`message-row ${m.sender}`}>
-              <div className={`message-bubble ${m.sender}`}>
-                <div className="message-text">{m.text}</div>
-                <div className="message-time">{m.time}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Frosted Glass Input Bar */}
-        <form className="chat-input-bar" onSubmit={handleSendMessage}>
-          <input
-            type="text"
-            className="chat-input-field"
-            placeholder="Type a message into the night sky..."
-            value={inputMsg}
-            onChange={(e) => setInputMsg(e.target.value)}
+      <div style={STAR_LAYER_STYLE}>
+        {shootingStars.map((s) => (
+          <div
+            key={s.id}
+            style={{
+              position: 'absolute',
+              top: `${s.top}%`,
+              left: `${s.left}%`,
+              width: 60,
+              height: 2,
+              borderRadius: 2,
+              background:
+                'linear-gradient(to left, rgba(255,255,255,0.9), rgba(255,255,255,0))',
+              animation: 'shoot 1.8s ease-out forwards',
+            }}
           />
-          <button type="submit" className="chat-send-btn" title="Send Message">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="5" y1="12" x2="19" y2="12"></line>
-              <polyline points="12 5 19 12 12 19"></polyline>
-            </svg>
-          </button>
-        </form>
+        ))}
       </div>
+
+      <Moon bottom={stage.moonBottom} glowBottom={stage.glowBottom} />
+
+      <div
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 3,
+          pointerEvents: 'none',
+        }}
+      >
+        {CLOUD_SPECS.map((cloud) => (
+          <Cloud key={cloud.id} {...cloud} animate={animate} />
+        ))}
+      </div>
+
+      <ChatUI />
     </div>
   );
 }
