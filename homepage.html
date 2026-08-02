@@ -2276,24 +2276,21 @@
                     modalAvatar.innerText = initial;
                 }
                 
+                const adminBtn = document.getElementById('openAdminPanelBtn');
+                const adminSec = document.getElementById('adminSection');
+                
+                const allowedAdminEmails = ['java71932@gmail.com', 'pkumarsaini178@gmail.com', 'pumarsaini178@gmail.com'];
+                const isLocalAdmin = currentUserEmail && allowedAdminEmails.includes(currentUserEmail.toLowerCase().trim());
+
+                if (adminBtn) adminBtn.style.display = isLocalAdmin ? 'block' : 'none';
+                if (adminSec) adminSec.style.display = isLocalAdmin ? 'block' : 'none';
+
                 fetch('/api/admin/check')
                     .then(res => res.json())
                     .then(data => {
-                        const adminBtn = document.getElementById('openAdminPanelBtn');
-                        const adminSec = document.getElementById('adminSection');
-                        if (adminBtn) {
-                            if (data.isAdmin) {
-                                adminBtn.style.display = 'block';
-                            } else {
-                                adminBtn.style.display = 'none';
-                            }
-                        }
-                        if (adminSec) {
-                            if (data.isAdmin) {
-                                adminSec.style.display = 'block';
-                            } else {
-                                adminSec.style.display = 'none';
-                            }
+                        if (data && data.isAdmin) {
+                            if (adminBtn) adminBtn.style.display = 'block';
+                            if (adminSec) adminSec.style.display = 'block';
                         }
                     })
                     .catch(() => {});
