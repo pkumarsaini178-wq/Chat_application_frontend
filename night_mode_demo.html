@@ -9,7 +9,7 @@
         body {
             margin: 0;
             padding: 24px;
-            background-color: #080c14;
+            background-color: #060913;
             color: #ffffff;
             font-family: 'Inter', system-ui, sans-serif;
             display: flex;
@@ -86,7 +86,7 @@
 
     <div class="demo-controls">
         <div class="control-row">
-            <label>🌙 Cycle Speed (QA Test Mode):</label>
+            <label>🌙 Sky Cycle Speed (QA Test Mode):</label>
             <div class="speed-buttons">
                 <button class="speed-btn" onclick="setSpeed(1, this)">Real Time (30m)</button>
                 <button class="speed-btn active" onclick="setSpeed(60, this)">60x (30s Rise)</button>
@@ -115,9 +115,8 @@
           const [cycleTimeMs, setCycleTimeMs] = useState(0);
           const [shootingStars, setShootingStars] = useState([]);
           const [messages, setMessages] = useState([
-            { id: 1, sender: 'them', text: 'Hey there! How is the night sky looking over your city?', time: '11:42 PM' },
-            { id: 2, sender: 'me', text: 'It looks absolutely stunning! The moon and stars are twinkling brightly. ✨', time: '11:43 PM' },
-            { id: 3, sender: 'them', text: 'That sounds magical! Enjoy the peaceful night view. 🌙', time: '11:44 PM' }
+            { id: 1, sender: 'them', text: 'clouds look proper now', time: '9:41 pm' },
+            { id: 2, sender: 'me', text: 'and the cycle loops on its own! ✨', time: '9:42 pm' }
           ]);
           const [inputMsg, setInputMsg] = useState('');
 
@@ -359,11 +358,11 @@
 
               <div className="chat-ui-layer">
                 <div className="chat-header">
-                  <div className="chat-header-avatar">L</div>
+                  <div className="chat-header-avatar">JR</div>
                   <div className="chat-header-info">
-                    <h4>Luna Sky</h4>
+                    <h4>Jordan Reyes</h4>
                     <p>
-                      <span className="status-dot-indicator" /> Online - Night Sky
+                      <span className="status-dot-indicator" /> online
                     </p>
                   </div>
                 </div>
@@ -383,7 +382,7 @@
                   <input
                     type="text"
                     className="chat-input-field"
-                    placeholder="Type a message into the night sky..."
+                    placeholder="message"
                     value={inputMsg}
                     onChange={(e) => setInputMsg(e.target.value)}
                   />
