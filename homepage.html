@@ -314,11 +314,6 @@
         </div>
 
         <div style="display: flex; align-items: center; gap: 8px;">
-            <button id="themeToggleBtn" onclick="toggleTheme()" class="theme-toggle-btn" title="Toggle Day / Night Mode">
-                <span id="themeIcon">☀️</span>
-                <span id="themeText" style="font-size: 12px; font-weight: 600;">Day</span>
-            </button>
-
             <div class="notifications" style="position: relative;">
                 <a href="notifications.html" style="text-decoration: none; color: inherit; position: relative; display: flex;">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--text-secondary);">
@@ -2670,37 +2665,27 @@
 
         function initTheme() {
             const savedTheme = localStorage.getItem('app-theme') || 'day';
-            if (savedTheme === 'night' || savedTheme === 'dark') {
-                document.body.classList.add('dark-mode');
-                updateThemeBtnUI('night');
-            } else {
-                document.body.classList.remove('dark-mode');
-                updateThemeBtnUI('day');
-            }
+            setAppTheme(savedTheme);
         }
 
-        function toggleTheme() {
-            if (document.body.classList.contains('dark-mode')) {
-                document.body.classList.remove('dark-mode');
-                localStorage.setItem('app-theme', 'day');
-                updateThemeBtnUI('day');
-            } else {
+        function setAppTheme(mode) {
+            const btnDay = document.getElementById('themeBtnDay');
+            const btnNight = document.getElementById('themeBtnNight');
+
+            if (mode === 'night' || mode === 'dark') {
                 document.body.classList.add('dark-mode');
                 localStorage.setItem('app-theme', 'night');
-                updateThemeBtnUI('night');
-            }
-        }
-
-        function updateThemeBtnUI(mode) {
-            const icon = document.getElementById('themeIcon');
-            const text = document.getElementById('themeText');
-            if (!icon || !text) return;
-            if (mode === 'night') {
-                icon.innerText = '🌙';
-                text.innerText = 'Night';
+                if (btnDay && btnNight) {
+                    btnDay.classList.remove('active');
+                    btnNight.classList.add('active');
+                }
             } else {
-                icon.innerText = '☀️';
-                text.innerText = 'Day';
+                document.body.classList.remove('dark-mode');
+                localStorage.setItem('app-theme', 'day');
+                if (btnDay && btnNight) {
+                    btnNight.classList.remove('active');
+                    btnDay.classList.add('active');
+                }
             }
         }
 
@@ -2724,6 +2709,18 @@
             <div id="profileModalAvatar" class="profile" style="width: 60px; height: 60px; font-size: 24px; margin: 0 auto 16px; border-radius: 50%; display: flex; justify-content: center; align-items: center; background: var(--primary-gradient); color: white;">U</div>
             <h3 style="margin-bottom: 20px; font-weight: 700; color: var(--text-main);">My Profile</h3>
             
+            <div style="text-align: left; margin-bottom: 16px;">
+                <label style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase; font-weight: 600; display: block; margin-bottom: 6px;">App Theme</label>
+                <div class="theme-segmented-control">
+                    <button id="themeBtnDay" onclick="setAppTheme('day')" class="theme-seg-btn active">
+                        <span>☀️</span> Day Mode
+                    </button>
+                    <button id="themeBtnNight" onclick="setAppTheme('night')" class="theme-seg-btn">
+                        <span>🌙</span> Night Mode
+                    </button>
+                </div>
+            </div>
+
             <div style="text-align: left; margin-bottom: 16px;">
                 <label style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase; font-weight: 600; display: block; margin-bottom: 4px;">Email Address</label>
                 <div id="profileEmail" style="padding: 12px; background: var(--input-bg); border-radius: var(--radius-sm); color: var(--text-secondary); font-size: 14px; border: 1px solid var(--border-color); word-break: break-all;">user@email.com</div>
