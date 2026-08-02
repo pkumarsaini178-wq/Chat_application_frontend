@@ -1,0 +1,409 @@
+/* NightModeChatBackground.css */
+
+.night-mode-chat-container {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  min-height: 650px;
+  border-radius: 16px;
+  overflow: hidden;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.4);
+  display: flex;
+  flex-direction: column;
+}
+
+/* Sky Background Layer */
+.sky-background {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, #15171C 45%, #16202C 85%, #1B2838 100%);
+  z-index: 1;
+  overflow: hidden;
+}
+
+/* Horizon Haze */
+.horizon-haze {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 35%;
+  background: linear-gradient(to bottom, rgba(30, 45, 65, 0) 0%, rgba(45, 65, 90, 0.35) 100%);
+  pointer-events: none;
+  transition: opacity 1.5s ease;
+  z-index: 2;
+}
+
+/* Star Layers */
+.star-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.star-layer.back {
+  z-index: 3;
+}
+
+.star-layer.front {
+  z-index: 4;
+}
+
+.star {
+  position: absolute;
+  background-color: #FFFFFF;
+  border-radius: 50%;
+  animation: starTwinkle var(--twinkle-duration, 3s) ease-in-out infinite var(--twinkle-delay, 0s),
+             starDrift var(--drift-duration, 6s) ease-in-out infinite alternate var(--drift-delay, 0s);
+}
+
+@keyframes starTwinkle {
+  0%, 100% { opacity: 0.15; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.1); }
+}
+
+@keyframes starDrift {
+  0% { transform: translateX(0px); }
+  100% { transform: translateX(var(--drift-offset, 3px)); }
+}
+
+/* Shooting Star */
+.shooting-star {
+  position: absolute;
+  height: 2px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0.4) 50%, rgba(255, 255, 255, 0) 100%);
+  border-radius: 999px;
+  box-shadow: 0 0 8px #ffffff;
+  pointer-events: none;
+  z-index: 5;
+  animation: shootingStarAnim 1.8s ease-out forwards;
+}
+
+@keyframes shootingStarAnim {
+  0% {
+    opacity: 0;
+    width: 0px;
+    transform: translate(0, 0) rotate(-35deg);
+  }
+  20% {
+    opacity: 1;
+    width: 90px;
+  }
+  100% {
+    opacity: 0;
+    width: 140px;
+    transform: translate(240px, 160px) rotate(-35deg);
+  }
+}
+
+/* Moon Wrapper & Halo Glow */
+.moon-wrapper {
+  position: absolute;
+  left: 65%;
+  transform: translateX(-50%);
+  pointer-events: none;
+  z-index: 6;
+  transition: transform 0.1s linear;
+}
+
+.moon-halo {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 170px;
+  height: 170px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(247, 222, 225, 0.24) 0%, rgba(247, 222, 225, 0) 70%);
+  pointer-events: none;
+}
+
+.moon {
+  position: relative;
+  width: 84px;
+  height: 84px;
+  border-radius: 48% 52% 47% 53%;
+  background: radial-gradient(circle at 38% 34%, #FFFDFD 0%, #FCEEEF 28%, #F3D7DA 55%, #E2B9BF 82%, #C99BA3 100%);
+  box-shadow: inset -9px -7px 14px rgba(90, 45, 55, 0.3), inset 3px 3px 8px rgba(255, 255, 255, 0.55), 0 0 20px rgba(252, 238, 239, 0.2);
+  overflow: hidden;
+}
+
+/* Moon Craters */
+.crater {
+  position: absolute;
+  background: rgba(180, 140, 150, 0.25);
+  border-radius: 50%;
+  box-shadow: inset 1px 1px 3px rgba(90, 45, 55, 0.4);
+}
+
+.crater-1 { width: 16px; height: 14px; top: 22%; left: 48%; }
+.crater-2 { width: 11px; height: 11px; top: 56%; left: 28%; }
+.crater-3 { width: 22px; height: 18px; top: 58%; left: 52%; }
+.crater-4 { width: 8px;  height: 8px;  top: 36%; left: 24%; }
+
+/* Clouds Layer */
+.cloud-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 7;
+}
+
+.cloud {
+  position: absolute;
+  display: flex;
+  align-items: flex-end;
+  filter: drop-shadow(0 6px 12px rgba(10, 15, 25, 0.35));
+  animation: cloudDrift var(--drift-duration, 30s) ease-in-out infinite alternate;
+}
+
+.cloud-puff {
+  border-radius: 50%;
+  background: linear-gradient(135deg, #F3F5F8 0%, #C7CDD6 100%);
+  position: relative;
+}
+
+.cloud-1 { top: 18%; left: 8%; transform: scale(0.9); --drift-duration: 32s; }
+.cloud-2 { top: 38%; left: 55%; transform: scale(1.15); --drift-duration: 28s; }
+.cloud-3 { top: 62%; left: 20%; transform: scale(0.85); --drift-duration: 34s; }
+
+@keyframes cloudDrift {
+  0% { transform: translateX(0px) scale(var(--cloud-scale, 1)); }
+  100% { transform: translateX(45px) scale(var(--cloud-scale, 1)); }
+}
+
+/* Dawn & Day Overlays */
+.dawn-overlay {
+  position: absolute;
+  inset: 0;
+  background-color: #F4B183;
+  pointer-events: none;
+  z-index: 8;
+  transition: opacity 1.2s ease-in-out;
+}
+
+.day-overlay {
+  position: absolute;
+  inset: 0;
+  background-color: #FFFFFF;
+  pointer-events: none;
+  z-index: 9;
+  transition: opacity 1.2s ease-in-out;
+}
+
+/* Chat UI Layer */
+.chat-ui-layer {
+  position: relative;
+  z-index: 10;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Frosted Glass Header */
+.chat-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  background: rgba(24, 26, 32, 0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  transition: background 1.2s ease, border-color 1.2s ease;
+}
+
+.chat-header-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #6C5CE7, #A29BFE);
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 16px;
+  box-shadow: 0 4px 12px rgba(108, 92, 231, 0.3);
+}
+
+.chat-header-info h4 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #E8E9ED;
+  transition: color 1.2s ease;
+}
+
+.chat-header-info p {
+  margin: 2px 0 0 0;
+  font-size: 12px;
+  color: #A0A5B5;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: color 1.2s ease;
+}
+
+.status-dot-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #00CEC9;
+  box-shadow: 0 0 8px rgba(0, 206, 201, 0.6);
+}
+
+/* Messages Area */
+.chat-messages-area {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.message-row {
+  display: flex;
+  width: 100%;
+}
+
+.message-row.received {
+  justify-content: flex-start;
+}
+
+.message-row.sent {
+  justify-content: flex-end;
+}
+
+.message-bubble {
+  max-width: 72%;
+  padding: 12px 18px;
+  font-size: 14px;
+  line-height: 1.5;
+  word-break: break-word;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  transition: background 1.2s ease, color 1.2s ease;
+}
+
+.message-bubble.received {
+  background: rgba(30, 33, 40, 0.85);
+  color: #E8E9ED;
+  border-radius: 14px 14px 14px 4px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.message-bubble.sent {
+  background: #6C5CE7;
+  color: #F4F3FF;
+  border-radius: 14px 14px 4px 14px;
+  box-shadow: 0 4px 18px rgba(108, 92, 231, 0.35);
+}
+
+.message-time {
+  font-size: 10px;
+  margin-top: 4px;
+  opacity: 0.7;
+  text-align: right;
+}
+
+/* Frosted Input Bar */
+.chat-input-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 20px;
+  background: rgba(24, 26, 32, 0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  transition: background 1.2s ease, border-color 1.2s ease;
+}
+
+.chat-input-field {
+  flex: 1;
+  padding: 12px 18px;
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.08);
+  color: #F4F3FF;
+  font-size: 14px;
+  outline: none;
+  transition: all 0.25s ease;
+}
+
+.chat-input-field::placeholder {
+  color: #A0A5B5;
+}
+
+.chat-input-field:focus {
+  border-color: #6C5CE7;
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.chat-send-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #6C5CE7;
+  color: #FFFFFF;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(108, 92, 231, 0.4);
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.chat-send-btn:hover {
+  transform: scale(1.05);
+  background: #5b4cc4;
+}
+
+.chat-send-btn:active {
+  transform: scale(0.95);
+}
+
+/* Light / Day State Contrast Overrides for Text & Header Elements */
+.is-day-mode .chat-header {
+  background: rgba(255, 255, 255, 0.65);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.is-day-mode .chat-header-info h4 {
+  color: #1E2229;
+}
+
+.is-day-mode .chat-header-info p {
+  color: #626773;
+}
+
+.is-day-mode .chat-input-bar {
+  background: rgba(255, 255, 255, 0.65);
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.is-day-mode .chat-input-field {
+  background: rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  color: #1E2229;
+}
+
+.is-day-mode .chat-input-field::placeholder {
+  color: #727785;
+}
+
+.is-day-mode .message-bubble.received {
+  background: rgba(240, 243, 248, 0.95);
+  color: #1E2229;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+/* Reduced Motion Override */
+@media (prefers-reduced-motion: reduce) {
+  .star, .cloud, .shooting-star {
+    animation: none !important;
+  }
+}

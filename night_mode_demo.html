@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Animated Night Mode Sky Chat UI Demo</title>
+    <link rel="stylesheet" href="NightModeChatBackground.css">
+    <style>
+        body {
+            margin: 0;
+            padding: 24px;
+            background-color: #080c14;
+            color: #ffffff;
+            font-family: 'Inter', system-ui, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+
+        .demo-controls {
+            width: 100%;
+            max-width: 480px;
+            background: rgba(24, 26, 32, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 16px 20px;
+            margin-bottom: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+            backdrop-filter: blur(8px);
+        }
+
+        .control-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .control-row label {
+            font-size: 13px;
+            font-weight: 600;
+            color: #A0A5B5;
+        }
+
+        .speed-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        .speed-btn {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: #E8E9ED;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .speed-btn.active {
+            background: #6C5CE7;
+            border-color: #6C5CE7;
+            color: #ffffff;
+            box-shadow: 0 2px 8px rgba(108, 92, 231, 0.4);
+        }
+
+        .chat-app-wrapper {
+            width: 100%;
+            max-width: 460px;
+            height: 720px;
+        }
+    </style>
+
+    <!-- Load React, ReactDOM, and Babel for live browser execution -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body>
+
+    <div class="demo-controls">
+        <div class="control-row">
+            <label>🌙 Cycle Speed (QA Test Mode):</label>
+            <div class="speed-buttons">
+                <button class="speed-btn" onclick="setSpeed(1, this)">Real Time (30m)</button>
+                <button class="speed-btn active" onclick="setSpeed(60, this)">60x (30s Rise)</button>
+                <button class="speed-btn" onclick="setSpeed(180, this)">180x (10s Rise)</button>
+            </div>
+        </div>
+        <div class="control-row">
+            <label>⚡ Reduced Motion:</label>
+            <button id="reducedBtn" class="speed-btn" onclick="toggleReducedMotion()">Off</button>
+        </div>
+    </div>
+
+    <div class="chat-app-wrapper" id="react-root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef, useMemo } = React;
+
+        const easeInOutQuad = (t) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
+
+        function NightModeChatBackground({
+          riseDurationMs = 1800000,
+          dayHoldMs = 300000,
+          reducedMotion = false,
+          speedMultiplier = 60
+        }) {
+          const [cycleTimeMs, setCycleTimeMs] = useState(0);
+          const [shootingStars, setShootingStars] = useState([]);
+          const [messages, setMessages] = useState([
+            { id: 1, sender: 'them', text: 'Hey there! How is the night sky looking over your city?', time: '11:42 PM' },
+            { id: 2, sender: 'me', text: 'It looks absolutely stunning! The moon and stars are twinkling brightly. ✨', time: '11:43 PM' },
+            { id: 3, sender: 'them', text: 'That sounds magical! Enjoy the peaceful night view. 🌙', time: '11:44 PM' }
+          ]);
+          const [inputMsg, setInputMsg] = useState('');
+
+          const animFrameRef = useRef(null);
+          const lastTimestampRef = useRef(null);
+
+          const starsData = useMemo(() => {
+            const generateStars = (count, minSize, maxSize) => {
+              const list = [];
+              for (let i = 0; i < count; i++) {
+                list.push({
+                  id: i,
+                  top: `${(Math.random() * 75).toFixed(2)}%`,
+                  left: `${(Math.random() * 96 + 2).toFixed(2)}%`,
+                  size: `${(Math.random() * (maxSize - minSize) + minSize).toFixed(2)}px`,
+                  twinkleDuration: `${(Math.random() * 3 + 2).toFixed(2)}s`,
+                  twinkleDelay: `${(Math.random() * 5).toFixed(2)}s`,
+                  driftDuration: `${(Math.random() * 4 + 4).toFixed(2)}s`,
+                  driftDelay: `${(Math.random() * 5).toFixed(2)}s`,
+                  driftOffset: `${(Math.random() * 6 - 3).toFixed(2)}px`
+                });
+              }
+              return list;
+            };
+            return {
+              back: generateStars(35, 0.5, 1.2),
+              front: generateStars(20, 1.2, 2.2)
+            };
+          }, []);
+
+          const totalCycleMs = useMemo(() => riseDurationMs + dayHoldMs, [riseDurationMs, dayHoldMs]);
+
+          useEffect(() => {
+            if (reducedMotion) return;
+
+            const animate = (timestamp) => {
+              if (lastTimestampRef.current === null) {
+                lastTimestampRef.current = timestamp;
+              }
+              const delta = (timestamp - lastTimestampRef.current) * speedMultiplier;
+              lastTimestampRef.current = timestamp;
+
+              setCycleTimeMs((prev) => (prev + delta) % totalCycleMs);
+              animFrameRef.current = requestAnimationFrame(animate);
+            };
+
+            const handleVisibilityChange = () => {
+              if (document.visibilityState === 'hidden') {
+                if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+                lastTimestampRef.current = null;
+              } else {
+                lastTimestampRef.current = null;
+                animFrameRef.current = requestAnimationFrame(animate);
+              }
+            };
+
+            document.addEventListener('visibilitychange', handleVisibilityChange);
+            animFrameRef.current = requestAnimationFrame(animate);
+
+            return () => {
+              document.removeEventListener('visibilitychange', handleVisibilityChange);
+              if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+            };
+          }, [totalCycleMs, speedMultiplier, reducedMotion]);
+
+          useEffect(() => {
+            if (reducedMotion) return;
+
+            let timer;
+            const scheduleShootingStar = () => {
+              const nextDelay = Math.random() * 8000 + 4000;
+              timer = setTimeout(() => {
+                const id = Date.now() + Math.random();
+                const top = Math.random() * 35 + 5;
+                const left = Math.random() * 60 + 10;
+                setShootingStars((prev) => [...prev, { id, top, left }]);
+
+                setTimeout(() => {
+                  setShootingStars((prev) => prev.filter((s) => s.id !== id));
+                }, 1800);
+
+                scheduleShootingStar();
+              }, nextDelay);
+            };
+
+            scheduleShootingStar();
+            return () => clearTimeout(timer);
+          }, [reducedMotion]);
+
+          const { moonTopPercent, haloOpacity, hazeOpacity, starOpacity, dawnOpacity, dayOpacity, isDay } = useMemo(() => {
+            if (reducedMotion) {
+              return {
+                moonTopPercent: 22,
+                haloOpacity: 1,
+                hazeOpacity: 1,
+                starOpacity: 1,
+                dawnOpacity: 0,
+                dayOpacity: 0,
+                isDay: false
+              };
+            }
+
+            let rawProgress = 0;
+            if (cycleTimeMs <= riseDurationMs) {
+              rawProgress = cycleTimeMs / riseDurationMs;
+            } else {
+              rawProgress = 1;
+            }
+
+            const easedProgress = easeInOutQuad(rawProgress);
+            const moonTopPercent = 120 - easedProgress * 100;
+
+            let hazeOpacity = 1;
+            let starOpacity = 1;
+            let dawnOpacity = 0;
+            let dayOpacity = 0;
+
+            if (rawProgress >= 0.70 && rawProgress < 0.90) {
+              const p = (rawProgress - 0.70) / 0.20;
+              dawnOpacity = p;
+              starOpacity = 1 - p;
+              hazeOpacity = 1 - p;
+            } else if (rawProgress >= 0.90) {
+              const p = (rawProgress - 0.90) / 0.10;
+              dawnOpacity = 1 - p;
+              dayOpacity = p;
+              starOpacity = 0;
+              hazeOpacity = 0;
+            }
+
+            const isDay = dayOpacity > 0.5;
+            const haloOpacity = 1 - Math.min(1, dayOpacity + dawnOpacity);
+
+            return {
+              moonTopPercent,
+              haloOpacity,
+              hazeOpacity,
+              starOpacity,
+              dawnOpacity,
+              dayOpacity,
+              isDay
+            };
+          }, [cycleTimeMs, riseDurationMs, reducedMotion]);
+
+          const handleSendMessage = (e) => {
+            e.preventDefault();
+            if (!inputMsg.trim()) return;
+            const newMsg = {
+              id: Date.now(),
+              sender: 'me',
+              text: inputMsg.trim(),
+              time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            };
+            setMessages((prev) => [...prev, newMsg]);
+            setInputMsg('');
+          };
+
+          return (
+            <div className={`night-mode-chat-container ${isDay ? 'is-day-mode' : ''}`}>
+              <div className="sky-background">
+                <div className="horizon-haze" style={{ opacity: hazeOpacity }} />
+
+                <div className="star-layer back" style={{ opacity: starOpacity }}>
+                  {starsData.back.map((star) => (
+                    <div
+                      key={`back-${star.id}`}
+                      className="star"
+                      style={{
+                        top: star.top,
+                        left: star.left,
+                        width: star.size,
+                        height: star.size,
+                        '--twinkle-duration': star.twinkleDuration,
+                        '--twinkle-delay': star.twinkleDelay,
+                        '--drift-duration': star.driftDuration,
+                        '--drift-delay': star.driftDelay,
+                        '--drift-offset': star.driftOffset
+                      }}
+                    />
+                  ))}
+                </div>
+
+                <div className="star-layer front" style={{ opacity: starOpacity }}>
+                  {starsData.front.map((star) => (
+                    <div
+                      key={`front-${star.id}`}
+                      className="star"
+                      style={{
+                        top: star.top,
+                        left: star.left,
+                        width: star.size,
+                        height: star.size,
+                        boxShadow: '0 0 4px #ffffff',
+                        '--twinkle-duration': star.twinkleDuration,
+                        '--twinkle-delay': star.twinkleDelay,
+                        '--drift-duration': star.driftDuration,
+                        '--drift-delay': star.driftDelay,
+                        '--drift-offset': star.driftOffset
+                      }}
+                    />
+                  ))}
+                </div>
+
+                {shootingStars.map((s) => (
+                  <div key={s.id} className="shooting-star" style={{ top: `${s.top}%`, left: `${s.left}%` }} />
+                ))}
+
+                <div className="moon-wrapper" style={{ top: `${moonTopPercent}%` }}>
+                  <div className="moon-halo" style={{ opacity: haloOpacity }} />
+                  <div className="moon">
+                    <div className="crater crater-1" />
+                    <div className="crater crater-2" />
+                    <div className="crater crater-3" />
+                    <div className="crater crater-4" />
+                  </div>
+                </div>
+
+                <div className="cloud-layer">
+                  <div className="cloud cloud-1">
+                    <div className="cloud-puff" style={{ width: '48px', height: '48px' }} />
+                    <div className="cloud-puff" style={{ width: '64px', height: '64px', marginLeft: '-18px' }} />
+                    <div className="cloud-puff" style={{ width: '42px', height: '42px', marginLeft: '-16px' }} />
+                  </div>
+                  <div className="cloud cloud-2">
+                    <div className="cloud-puff" style={{ width: '56px', height: '56px' }} />
+                    <div className="cloud-puff" style={{ width: '78px', height: '78px', marginLeft: '-22px' }} />
+                    <div className="cloud-puff" style={{ width: '52px', height: '52px', marginLeft: '-20px' }} />
+                  </div>
+                  <div className="cloud cloud-3">
+                    <div className="cloud-puff" style={{ width: '42px', height: '42px' }} />
+                    <div className="cloud-puff" style={{ width: '58px', height: '58px', marginLeft: '-16px' }} />
+                    <div className="cloud-puff" style={{ width: '38px', height: '38px', marginLeft: '-14px' }} />
+                  </div>
+                </div>
+
+                <div className="dawn-overlay" style={{ opacity: dawnOpacity }} />
+                <div className="day-overlay" style={{ opacity: dayOpacity }} />
+              </div>
+
+              <div className="chat-ui-layer">
+                <div className="chat-header">
+                  <div className="chat-header-avatar">L</div>
+                  <div className="chat-header-info">
+                    <h4>Luna Sky</h4>
+                    <p>
+                      <span className="status-dot-indicator" /> Online - Night Sky
+                    </p>
+                  </div>
+                </div>
+
+                <div className="chat-messages-area">
+                  {messages.map((m) => (
+                    <div key={m.id} className={`message-row ${m.sender}`}>
+                      <div className={`message-bubble ${m.sender}`}>
+                        <div className="message-text">{m.text}</div>
+                        <div className="message-time">{m.time}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <form className="chat-input-bar" onSubmit={handleSendMessage}>
+                  <input
+                    type="text"
+                    className="chat-input-field"
+                    placeholder="Type a message into the night sky..."
+                    value={inputMsg}
+                    onChange={(e) => setInputMsg(e.target.value)}
+                  />
+                  <button type="submit" className="chat-send-btn" title="Send Message">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="5" y1="12" x2="19" y2="12"></line>
+                      <polyline points="12 5 19 12 12 19"></polyline>
+                    </svg>
+                  </button>
+                </form>
+              </div>
+            </div>
+          );
+        }
+
+        let currentSpeed = 60;
+        let isReduced = false;
+
+        function renderApp() {
+          ReactDOM.render(
+            <NightModeChatBackground speedMultiplier={currentSpeed} reducedMotion={isReduced} />,
+            document.getElementById('react-root')
+          );
+        }
+
+        window.setSpeed = function(speed, btn) {
+          currentSpeed = speed;
+          document.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          renderApp();
+        };
+
+        window.toggleReducedMotion = function() {
+          isReduced = !isReduced;
+          document.getElementById('reducedBtn').innerText = isReduced ? 'On' : 'Off';
+          renderApp();
+        };
+
+        renderApp();
+    </script>
+</body>
+</html>
