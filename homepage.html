@@ -314,6 +314,11 @@
         </div>
 
         <div style="display: flex; align-items: center; gap: 8px;">
+            <button id="themeToggleBtn" onclick="toggleTheme()" class="theme-toggle-btn" title="Toggle Day / Night Mode">
+                <span id="themeIcon">☀️</span>
+                <span id="themeText" style="font-size: 12px; font-weight: 600;">Day</span>
+            </button>
+
             <div class="notifications" style="position: relative;">
                 <a href="notifications.html" style="text-decoration: none; color: inherit; position: relative; display: flex;">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--text-secondary);">
@@ -1210,13 +1215,13 @@
                             let friendEmail = conn.user1Email === currentUserEmail ? conn.user2Email : conn.user1Email;
                             let isOnline = statusMap[friendEmail] || false;
                             let profileInitial = friendEmail.charAt(0).toUpperCase();
-                            let statusColor = isOnline ? 'var(--whatsapp-green)' : 'var(--text-muted)';
+                            let statusColor = isOnline ? 'var(--status-online)' : 'var(--status-offline)';
                             let statusText = isOnline ? 'online' : 'offline';
 
                             let friendHtml = `
                                 <div class="user" onclick="openChat(${conn.id}, '${esc(friendEmail)}')" data-email="${esc(friendEmail)}">
                                     <div class="profile-wrapper">
-                                        <div class="profile" style="background: ${isOnline ? '' : 'var(--text-muted)'}">${esc(profileInitial)}</div>
+                                        <div class="profile" style="background: ${isOnline ? 'var(--primary-gradient)' : 'var(--text-muted)'}">${esc(profileInitial)}</div>
                                         <span class="online-dot" style="display: block; background: ${statusColor};"></span>
                                     </div>
                                     <div class="details">
@@ -1304,13 +1309,13 @@
                 .then(status => {
                     let el = document.getElementById('friendStatus');
                     if (status.isOnline) {
-                        el.innerHTML = '<span style="color: var(--whatsapp-green);">Online</span>';
+                        el.innerHTML = '<span style="color: var(--status-online);">Online</span>';
                     } else if (status.lastSeen) {
                         let d = new Date(status.lastSeen);
                         let timeStr = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-                        el.innerHTML = '<span style="color: var(--text-muted);">Last seen ' + timeStr + '</span>';
+                        el.innerHTML = '<span style="color: var(--status-offline);">Last seen ' + timeStr + '</span>';
                     } else {
-                        el.innerHTML = '';
+                        el.innerHTML = '<span style="color: var(--status-offline);">Offline</span>';
                     }
                 })
                 .catch(function() { document.getElementById('friendStatus').innerHTML = ''; });
@@ -2629,6 +2634,77 @@
                 }
             }, 300);
         }
+
+        function updateUserStatusUI(email, isOnline, lastSeen) {
+            let userEl = document.querySelector('[data-email="' + CSS.escape(email) + '"]');
+            if (userEl) {
+                let dot = userEl.querySelector('.online-dot');
+                let statusText = userEl.querySelector('.status-text');
+                let profileEl = userEl.querySelector('.profile');
+                if (dot) {
+                    dot.style.background = isOnline ? 'var(--status-online)' : 'var(--status-offline)';
+                }
+                if (statusText) {
+                    statusText.style.color = isOnline ? 'var(--status-online)' : 'var(--status-offline)';
+                    statusText.innerText = isOnline ? 'online' : (lastSeen ? 'offline' : 'offline');
+                }
+                if (profileEl) {
+                    profileEl.style.background = isOnline ? 'var(--primary-gradient)' : 'var(--text-muted)';
+                }
+            }
+            if (currentFriendEmail === email) {
+                let friendStatus = document.getElementById('friendStatus');
+                if (friendStatus) {
+                    if (isOnline) {
+                        friendStatus.innerHTML = '<span style="color: var(--status-online);">Online</span>';
+                    } else if (lastSeen) {
+                        let d = new Date(lastSeen);
+                        let timeStr = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+                        friendStatus.innerHTML = '<span style="color: var(--status-offline);">Last seen ' + timeStr + '</span>';
+                    } else {
+                        friendStatus.innerHTML = '<span style="color: var(--status-offline);">Offline</span>';
+                    }
+                }
+            }
+        }
+
+        function initTheme() {
+            const savedTheme = localStorage.getItem('app-theme') || 'day';
+            if (savedTheme === 'night' || savedTheme === 'dark') {
+                document.body.classList.add('dark-mode');
+                updateThemeBtnUI('night');
+            } else {
+                document.body.classList.remove('dark-mode');
+                updateThemeBtnUI('day');
+            }
+        }
+
+        function toggleTheme() {
+            if (document.body.classList.contains('dark-mode')) {
+                document.body.classList.remove('dark-mode');
+                localStorage.setItem('app-theme', 'day');
+                updateThemeBtnUI('day');
+            } else {
+                document.body.classList.add('dark-mode');
+                localStorage.setItem('app-theme', 'night');
+                updateThemeBtnUI('night');
+            }
+        }
+
+        function updateThemeBtnUI(mode) {
+            const icon = document.getElementById('themeIcon');
+            const text = document.getElementById('themeText');
+            if (!icon || !text) return;
+            if (mode === 'night') {
+                icon.innerText = '🌙';
+                text.innerText = 'Night';
+            } else {
+                icon.innerText = '☀️';
+                text.innerText = 'Day';
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', initTheme);
 
         // Global keydown listener for Escape key to close modals
         document.addEventListener('keydown', function(e) {

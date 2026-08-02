@@ -6,10 +6,10 @@
     --card-shadow: 0 2px 16px rgba(0, 0, 0, 0.06);
     --card-hover-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
 
-    --primary: #6c5ce7;
-    --primary-dark: #5a4bd1;
-    --primary-light: #eeeaff;
-    --primary-gradient: linear-gradient(135deg, #6c5ce7, #a29bfe);
+    --primary: #7c3aed;
+    --primary-dark: #6d28d9;
+    --primary-light: #f5f3ff;
+    --primary-gradient: linear-gradient(135deg, #7c3aed, #a855f7);
 
     --whatsapp-green: #00cec9;
     --danger: #ff7675;
@@ -18,23 +18,78 @@
     --success-light: #e0f7f0;
     --warning: #fdcb6e;
 
-    --text-main: #2d3436;
-    --text-secondary: #636e72;
-    --text-muted: #b2bec3;
+    --text-main: #1e293b;
+    --text-secondary: #64748b;
+    --text-muted: #94a3b8;
 
-    --border-color: #e4e8ee;
-    --input-bg: #f5f7fa;
+    --border-color: #e2e8f0;
+    --input-bg: #f8fafc;
     --navbar-bg: #ffffff;
-    --chat-bg: #f8f9fd;
-    --msg-self-bg: linear-gradient(135deg, #6c5ce7, #a29bfe);
+    --chat-bg: #f8fafc;
+    --msg-self-bg: linear-gradient(135deg, #7c3aed, #a855f7);
     --msg-self-color: #ffffff;
     --msg-them-bg: #ffffff;
     --sidebar-bg: #ffffff;
+
+    --status-online: #7c3aed;  /* Day Mode: Purple Online status */
+    --status-offline: #94a3b8; /* Day Mode: Grey Offline status */
 
     --radius-sm: 8px;
     --radius-md: 12px;
     --radius-lg: 16px;
     --radius-xl: 24px;
+}
+
+/* --- Night / Dark Mode Theme Palette (Obsidian Black & Electric Blue Glow) --- */
+body.dark-mode {
+    --bg-color: #0b0f19;       /* Deep Obsidian Black */
+    --card-bg: #111827;       /* Modern Dark Slate Card */
+    --card-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    --card-hover-shadow: 0 12px 40px rgba(0, 0, 0, 0.7);
+
+    --primary: #2563eb;       /* Electric Blue Accent */
+    --primary-dark: #1d4ed8;
+    --primary-light: #1e293b;
+    --primary-gradient: linear-gradient(135deg, #2563eb, #3b82f6);
+
+    --text-main: #f8fafc;       /* Crisp White text */
+    --text-secondary: #94a3b8;   /* Soft slate text */
+    --text-muted: #64748b;
+
+    --border-color: #1e293b;   /* Dark border */
+    --input-bg: #1e293b;       /* Dark input background */
+    --navbar-bg: #1e293b;      /* Sleek Electric Blue Navigation Bar */
+    --chat-bg: #090d16;        /* Deep dark chat canvas */
+    --msg-self-bg: linear-gradient(135deg, #2563eb, #60a5fa); /* Smooth Glowing Blue Chat Bubbles */
+    --msg-self-color: #ffffff;
+    --msg-them-bg: #1e293b;
+    --sidebar-bg: #0f172a;     /* Deep Slate Sidebar */
+
+    --status-online: #38bdf8;  /* Night Mode: Neon/Electric Blue Online status */
+    --status-offline: #64748b; /* Night Mode: Light Blue / Slate Offline status */
+}
+
+/* --- Modern Theme Toggle Button --- */
+.theme-toggle-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: 20px;
+    border: 1px solid var(--border-color);
+    background: var(--input-bg);
+    color: var(--text-main);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+}
+.theme-toggle-btn:hover {
+    background: var(--primary-light);
+    color: var(--primary);
+    border-color: var(--primary);
+    transform: translateY(-1px);
 }
 
 * {
