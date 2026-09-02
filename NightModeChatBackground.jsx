@@ -4,8 +4,8 @@ import Cloud from './Cloud.jsx';
 import Moon from './Moon.jsx';
 import ChatUI from './ChatUI.jsx';
 
-const RISE_DURATION_MS = 1800000; // 30 minutes
-const DAY_HOLD_MS = 300000; // 5 minutes
+const RISE_DURATION_MS = 1800000;
+const DESCEND_DURATION_MS = 300000;
 
 const ease = (t) =>
   t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
@@ -79,7 +79,7 @@ const STAR_LAYER_STYLE = {
 
 export default function NightModeChatBackground({
   riseDurationMs = RISE_DURATION_MS,
-  dayHoldMs = DAY_HOLD_MS,
+  descendMs = DESCEND_DURATION_MS,
   speedMultiplier = 1,
   reducedMotion = null,
 }) {
@@ -124,8 +124,8 @@ export default function NightModeChatBackground({
     }
 
     const effectiveRise = riseDurationMs / speedMultiplier;
-    const effectiveHold = dayHoldMs / speedMultiplier;
-    const totalMs = effectiveRise + effectiveHold;
+    const effectiveDescend = descendMs / speedMultiplier;
+    const totalMs = effectiveRise + effectiveDescend;
 
     let rafId = null;
     let startTime = performance.now();
@@ -133,25 +133,30 @@ export default function NightModeChatBackground({
 
     const tick = () => {
       const elapsed = performance.now() - startTime;
-      const position = elapsed % totalMs;
-      const t = position <= effectiveRise ? position / effectiveRise : 1;
+      const cycle = elapsed % totalMs;
 
-      const eased = ease(t);
-      const moonBottom = -56 + eased * 300;
-      const glowBottom = -80 + eased * 300;
+      let h;
+      if (cycle <= effectiveRise) {
+        h = ease(cycle / effectiveRise);
+      } else {
+        h = 1 - ease((cycle - effectiveRise) / effectiveDescend);
+      }
+
+      const moonBottom = -56 + h * 300;
+      const glowBottom = -80 + h * 300;
 
       let dawnOpacity = 0;
       let dayOpacity = 0;
       let starOpacity = 1;
       let hazeOpacity = 1;
 
-      if (t >= 0.7 && t <= 0.9) {
-        const dt = (t - 0.7) / 0.2;
+      if (h >= 0.7 && h <= 0.9) {
+        const dt = (h - 0.7) / 0.2;
         dawnOpacity = dt;
         starOpacity = Math.max(0, 1 - dt * 1.5);
         hazeOpacity = Math.max(0, 1 - dt * 1.5);
-      } else if (t > 0.9) {
-        const dt = (t - 0.9) / 0.1;
+      } else if (h > 0.9) {
+        const dt = (h - 0.9) / 0.1;
         dawnOpacity = Math.max(0, 1 - dt);
         dayOpacity = dt;
         starOpacity = 0;
@@ -187,7 +192,7 @@ export default function NightModeChatBackground({
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       cancelAnimationFrame(rafId);
     };
-  }, [isReducedMotion, riseDurationMs, dayHoldMs, speedMultiplier]);
+  }, [isReducedMotion, riseDurationMs, descendMs, speedMultiplier]);
 
   useEffect(() => {
     if (isReducedMotion) return;
