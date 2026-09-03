@@ -65,7 +65,7 @@
                 }
                 return '';
             }
-            return 'https://chat-backend-i0ri.onrender.com';
+            return 'https://chat-backend-vjax.onrender.com';
         };
 
         // Check if user is already logged in
@@ -97,45 +97,64 @@
             document.getElementById("errorMessage").style.display = 'block';
         }
 
-        // Handle Login Form via fetch to prevent cross-origin redirect issues
-        document.querySelector('form').addEventListener('submit', function(e) {
+        document.querySelector('form').addEventListener('submit', async function(e) {
             e.preventDefault();
             const formData = new FormData(this);
             const errDiv = document.getElementById("errorMessage");
             errDiv.style.display = 'none';
+            errDiv.innerText = '';
 
-            fetch(getBackendUrl() + '/loginpage', {
-                method: 'POST',
-                body: formData,
-                credentials: 'include'
-            })
-            .then(res => {
-                const targetUrl = res.url || '';
-                // Check if backend redirected with an error query param
-                if (targetUrl.includes('error=')) {
-                    try {
-                        const urlObj = new URL(targetUrl);
-                        const errorMsg = urlObj.searchParams.get("error");
-                        if (errorMsg) {
-                            errDiv.innerText = decodeURIComponent(errorMsg);
-                            errDiv.style.display = 'block';
-                            return;
-                        }
-                    } catch (err) {}
-                    errDiv.innerText = 'Invalid email or password';
-                    errDiv.style.display = 'block';
-                } else if (targetUrl.includes('/homepage.html') || res.ok) {
-                    window.location.href = '/homepage.html';
-                } else {
-                    errDiv.innerText = 'Invalid email or password';
-                    errDiv.style.display = 'block';
+            let urlsToTry = ['/loginpage', 'https://chat-backend-vjax.onrender.com/loginpage'];
+            if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                urlsToTry = ['http://localhost:8080/loginpage', '/loginpage'];
+            }
+
+            let lastErrorMessage = 'Unable to connect to server. Please try again.';
+            for (let url of urlsToTry) {
+                try {
+                    let res = await fetch(url, {
+                        method: 'POST',
+                        body: formData,
+                        credentials: 'include'
+                    });
+
+                    const targetUrl = res.url || '';
+                    if (targetUrl.includes('error=')) {
+                        try {
+                            const urlObj = new URL(targetUrl);
+                            const errorMsg = urlObj.searchParams.get("error");
+                            if (errorMsg) {
+                                errDiv.innerText = decodeURIComponent(errorMsg);
+                                errDiv.style.display = 'block';
+                                return;
+                            }
+                        } catch (err) {}
+                    }
+
+                    const contentType = res.headers.get("content-type");
+                    let data = null;
+                    if (contentType && contentType.indexOf("application/json") !== -1) {
+                        data = await res.json();
+                    }
+
+                    if (data && data.status === 'ERROR') {
+                        errDiv.innerText = data.message || 'Invalid email or password';
+                        errDiv.style.display = 'block';
+                        return;
+                    }
+
+                    if (res.ok || (data && data.status === 'SUCCESS') || targetUrl.includes('/homepage.html')) {
+                        window.location.href = (data && data.redirect) ? data.redirect : '/homepage.html';
+                        return;
+                    }
+                } catch (err) {
+                    console.warn('Login attempt failed for ' + url + ':', err);
+                    lastErrorMessage = err.message || lastErrorMessage;
                 }
-            })
-            .catch(err => {
-                console.error('Login error:', err);
-                errDiv.innerText = 'Unable to connect to server. Please try again.';
-                errDiv.style.display = 'block';
-            });
+            }
+
+            errDiv.innerText = 'Unable to connect to server: ' + lastErrorMessage;
+            errDiv.style.display = 'block';
         });
     </script>
 </body>
