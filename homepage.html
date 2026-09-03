@@ -442,6 +442,87 @@
             return String(str).replace(/'/g, "\\'").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
         }
 
+        function renderUserList(data) {
+            let userList = document.getElementById("userList");
+            if (!userList) return;
+            userList.innerHTML = '';
+
+            if (!Array.isArray(data)) {
+                userList.innerHTML = '<p style="text-align:center; padding:20px; color: var(--text-secondary);">No other users available.</p>';
+                return;
+            }
+
+            let filteredUsers = data.filter(user => {
+                if (!user || !user.useremail) return false;
+                if (currentUserEmail && user.useremail.toLowerCase() === currentUserEmail.toLowerCase()) return false;
+                return true;
+            });
+
+            if (filteredUsers.length === 0) {
+                userList.innerHTML = '<p style="text-align:center; padding:20px; color: var(--text-secondary);">No other users available.</p>';
+                return;
+            }
+
+            let emails = filteredUsers.map(u => u.useremail);
+            let statusUrl = '/api/user/status/batch?emails=' + emails.map(e => encodeURIComponent(e)).join('&');
+
+            fetch(statusUrl)
+                .then(res => res.ok ? res.json() : {})
+                .then(statusMap => {
+                    userList.innerHTML = '';
+                    filteredUsers.forEach(user => {
+                        let username = user.username || user.useremail.split('@')[0] || 'Unknown';
+                        let email = user.useremail;
+                        if (email) userCache[email.toLowerCase().trim()] = username;
+                        let profileInitial = username.charAt(0).toUpperCase();
+                        let userStatus = statusMap[email] || { isOnline: false };
+                        let isOnline = userStatus.isOnline || false;
+                        let statusColor = isOnline ? 'var(--whatsapp-green)' : 'var(--text-muted)';
+
+                        let userHtml = `
+                            <div class="user" data-email="${esc(email)}">
+                                <div style="display:flex; align-items:center; flex:1; min-width:0;">
+                                    <div class="profile-wrapper">
+                                        <div class="profile" style="background: ${isOnline ? '' : 'var(--text-muted)'}">${esc(profileInitial)}</div>
+                                        <span class="online-dot" style="display: block; background: ${statusColor};"></span>
+                                    </div>
+                                    <div class="details">
+                                        <h3>${esc(username)}</h3>
+                                        <p class="status-text" style="color: ${statusColor}; font-size: 11px;">${isOnline ? 'online' : 'offline'}</p>
+                                    </div>
+                                </div>
+                                <button id="addBtn-${esc(email)}" onclick="sendFriendRequest('${esc(email)}', this)" class="add-friend-btn">Add Friend</button>
+                            </div>
+                        `;
+                        userList.innerHTML += userHtml;
+                    });
+                })
+                .catch(() => {
+                    userList.innerHTML = '';
+                    filteredUsers.forEach(user => {
+                        let username = user.username || user.useremail.split('@')[0] || 'Unknown';
+                        let email = user.useremail;
+                        let profileInitial = username.charAt(0).toUpperCase();
+                        let userHtml = `
+                            <div class="user" data-email="${esc(email)}">
+                                <div style="display:flex; align-items:center; flex:1; min-width:0;">
+                                    <div class="profile-wrapper">
+                                        <div class="profile">${esc(profileInitial)}</div>
+                                        <span class="online-dot" style="display: block; background: var(--text-muted);"></span>
+                                    </div>
+                                    <div class="details">
+                                        <h3>${esc(username)}</h3>
+                                        <p class="status-text" style="color: var(--text-muted); font-size: 11px;">offline</p>
+                                    </div>
+                                </div>
+                                <button id="addBtn-${esc(email)}" onclick="sendFriendRequest('${esc(email)}', this)" class="add-friend-btn">Add Friend</button>
+                            </div>
+                        `;
+                        userList.innerHTML += userHtml;
+                    });
+                });
+        }
+
         function sendFriendRequest(receiverEmail, btnElement) {
             if (btnElement) {
                 btnElement.disabled = true;
@@ -524,6 +605,14 @@
         let sendCounter = 0;
         let isCurrentlyTyping = false;
         let typingTimeoutId = null;
+        let userCache = {};
+
+        function getUsername(email) {
+            if (!email) return 'Unknown';
+            let clean = email.toLowerCase().trim();
+            if (userCache[clean]) return userCache[clean];
+            return email.split('@')[0];
+        }
 
         const emojiMap = {
             smileys: ['😀','😃','😄','😁','😆','😅','😂','🤣','😊','😇','🙂','🙃','😉','😌','😍','🥰','😘','😗','😙','😚','😋','😛','😝','😜','🤪','🤨','🧐','🤓','😎','🥸','🤩','🥳','😏','😒','😞','😔','😟','😕','🙁','☹️','😣','😖','😫','😩','🥺','😢','😭','😤','😠','😡','🤬','🤯','😳','🥵','🥶','😱','😨','😰','😥','😓','🤗','🤔','🫣','🤭','🫢','🤫','🫠','🤥','😶','🫥','😐','😑','😬','🫨','🙄','😯','😦','😧','😮','😲','🥱','😴','🤤','😪','😮‍💨','😵','😵‍💫','🤐','🥴','🤢','🤮','🤧','😷','🤒','🤕','🤑','🤠','😈','👿','👹','👺','🤡','💩','👻','💀','☠️','👽','👾','🤖','🎃','😺','😸','😹','😻','😼','😽','🙀','😿','😾'],
@@ -648,58 +737,7 @@
             fetch(url)
                 .then(res => res.json())
                 .then(data => {
-                    let userList = document.getElementById("userList");
-                    userList.innerHTML = '';
-                    let addedUsers = 0;
-                    let statusPromises = [];
-                    data.forEach(user => {
-                        let email = user.useremail || 'No email';
-                        if (email !== 'No email' && email !== currentUserEmail) {
-                            statusPromises.push(
-                                fetch('/api/user/status/' + encodeURIComponent(email))
-                                    .then(res => res.json())
-                                    .then(s => ({ email, isOnline: s.isOnline }))
-                                    .catch(() => ({ email, isOnline: false }))
-                            );
-                        }
-                    });
-                    Promise.all(statusPromises).then(statuses => {
-                        let statusMap = {};
-                        statuses.forEach(s => { statusMap[s.email] = s.isOnline; });
-                        data.forEach(user => {
-                            let username = user.username || 'Unknown';
-                            let email = user.useremail || 'No email';
-                            
-                            if (email !== 'No email' && email === currentUserEmail) return;
-                            if (currentUsername && username !== 'Unknown' && username === currentUsername) return;
-                            if (username === currentUserEmail) return;
-
-                            addedUsers++;
-                            let profileInitial = username.charAt(0).toUpperCase();
-                            let isOnline = statusMap[email] || false;
-                            let statusColor = isOnline ? 'var(--whatsapp-green)' : 'var(--text-muted)';
-
-                            let userHtml = `
-                                <div class="user" data-email="${esc(email)}">
-                                    <div style="display:flex; align-items:center; flex:1; min-width:0;">
-                                        <div class="profile-wrapper">
-                                            <div class="profile" style="background: ${isOnline ? '' : 'var(--text-muted)'}">${esc(username)}</div>
-                                            <span class="online-dot" style="display: block; background: ${statusColor};"></span>
-                                        </div>
-                                        <div class="details">
-                                            <h3>${esc(username)}</h3>
-                                            <p class="status-text" style="color: ${statusColor}; font-size: 11px;">${isOnline ? 'online' : 'offline'}</p>
-                                        </div>
-                                    </div>
-                                    <button id="addBtn-${esc(email)}" onclick="sendFriendRequest('${esc(email)}', this)" class="add-friend-btn">Add Friend</button>
-                                </div>
-                            `;
-                            userList.innerHTML += userHtml;
-                        });
-                        if (addedUsers === 0) {
-                            userList.innerHTML = '<p style="text-align:center; padding:20px; color: var(--text-secondary);">No users found matching your search.</p>';
-                        }
-                    });
+                    renderUserList(data);
                 })
                 .catch(err => console.error('Error in search:', err));
         }
@@ -1209,7 +1247,8 @@
                         data.forEach(conn => {
                             let friendEmail = conn.user1Email === currentUserEmail ? conn.user2Email : conn.user1Email;
                             let isOnline = statusMap[friendEmail] || false;
-                            let profileInitial = friendEmail.charAt(0).toUpperCase();
+                            let friendName = getUsername(friendEmail);
+                            let profileInitial = friendName.charAt(0).toUpperCase();
                             let statusColor = isOnline ? 'var(--status-online)' : 'var(--status-offline)';
                             let statusText = isOnline ? 'online' : 'offline';
 
@@ -1220,7 +1259,7 @@
                                         <span class="online-dot" style="display: block; background: ${statusColor};"></span>
                                     </div>
                                     <div class="details">
-                                        <h3>${esc(friendEmail.split('@')[0])}</h3>
+                                        <h3>${esc(friendName)}</h3>
                                         <p class="status-text" style="color: ${statusColor}; font-size: 11px;">${statusText}</p>
                                     </div>
                                 </div>
@@ -1284,7 +1323,8 @@
             isCurrentlyTyping = false;
             if (typingTimeoutId) clearTimeout(typingTimeoutId);
 
-            document.getElementById('chatHeader').innerHTML = friendEmail.split('@')[0] + ' <span id="friendStatus" style="font-size:13px; font-weight:normal; color: var(--text-secondary);"></span>';
+            let friendName = getUsername(friendEmail);
+            document.getElementById('chatHeader').innerHTML = esc(friendName) + ' <span id="friendStatus" style="font-size:13px; font-weight:normal; color: var(--text-secondary);"></span>';
             document.getElementById('chatHistory').style.display = 'flex';
             document.getElementById('chatInputArea').style.display = 'flex';
             document.getElementById('chatSettings').style.display = 'block';
@@ -1370,7 +1410,7 @@
             let quoteHtml = '';
             if (msg.parentMessageId) {
                 let pText = msg.parentMessageText || '[Encrypted message]';
-                let pSender = msg.parentMessageSender || 'Unknown';
+                let pSender = msg.parentMessageSender ? getUsername(msg.parentMessageSender) : 'Unknown';
                 quoteHtml = `
                     <div class="quoted-msg" onclick="scrollToMessage(${msg.parentMessageId})" style="background:rgba(0,0,0,0.06); border-left:3px solid var(--primary); padding:6px; border-radius:4px; margin-bottom:6px; font-size:12px; cursor:pointer; width:100%; text-align:left;">
                         <strong style="color:var(--primary); font-size:11px;">${esc(pSender)}</strong>
@@ -1382,7 +1422,8 @@
             let editedHtml = msg.isEdited ? ' <small class="edited-tag" style="font-size:10px; opacity:0.6; font-style:italic; margin-left:4px;">(edited)</small>' : '';
 
             let msgIdAttr = msg.id ? 'data-message-id="' + msg.id + '"' : '';
-            let senderNameEscaped = esc(msg.senderName || msg.sender);
+            let rawSenderName = (msg.senderName && msg.senderName !== msg.sender) ? msg.senderName : getUsername(msg.sender);
+            let senderNameEscaped = esc(rawSenderName);
             let messageTextEscaped = esc(msg.message || '');
 
             historyDiv.innerHTML += `
@@ -2113,14 +2154,11 @@
                 .then(userMap => {
                     if (userMap.email) {
                         currentUserEmail = userMap.email;
-                        let username = userMap.username ? userMap.username : 'Unknown';
-                        currentUsername = userMap.username;
-                        if (username !== currentUserEmail) {
-                            document.getElementById('currentUserName').innerText = username + ' (' + currentUserEmail + ')';
-                        } else {
-                            document.getElementById('currentUserName').innerText = currentUserEmail;
-                        }
-                        let initial = (currentUsername || currentUserEmail || 'U').charAt(0).toUpperCase();
+                        let username = userMap.username ? userMap.username : userMap.email.split('@')[0];
+                        currentUsername = username;
+                        userCache[currentUserEmail.toLowerCase().trim()] = username;
+                        document.getElementById('currentUserName').innerText = username;
+                        let initial = (currentUsername || 'U').charAt(0).toUpperCase();
                         let profileBtn = document.getElementById('profileBtn');
                         if (profileBtn) profileBtn.innerText = initial;
                         // Subscriptions are handled inside connectWebSocket() STOMP success callback
@@ -2129,92 +2167,7 @@
                         fetch('/active-users')
                             .then(response => response.json())
                             .then(data => {
-                                let userList = document.getElementById("userList");
-                                userList.innerHTML = '';
-
-                                let emails = data
-                                    .filter(user => user.useremail && user.useremail !== currentUserEmail)
-                                    .filter(user => {
-                                        let username = user.username || 'Unknown';
-                                        if (userMap.username && username !== 'Unknown' && username === userMap.username) return false;
-                                        if (username === currentUserEmail) return false;
-                                        return true;
-                                    })
-                                    .map(user => user.useremail);
-
-                                let statusUrl = '/api/user/status/batch?emails=' + emails.map(e => encodeURIComponent(e)).join('&');
-
-                                fetch(statusUrl)
-                                    .then(res => res.json())
-                                    .then(statusMap => {
-                                        let addedUsers = 0;
-                                        data.forEach(user => {
-                                            let username = user.username || 'Unknown';
-                                            let email = user.useremail || 'No email';
-
-                                            if (email === 'No email' || email === currentUserEmail) return;
-                                            if (userMap.username && username !== 'Unknown' && username === userMap.username) return;
-                                            if (username === currentUserEmail) return;
-
-                                            addedUsers++;
-                                            let profileInitial = username.charAt(0).toUpperCase();
-                                            let userStatus = statusMap[email] || { isOnline: false };
-                                            let isOnline = userStatus.isOnline || false;
-                                            let statusColor = isOnline ? 'var(--whatsapp-green)' : 'var(--text-muted)';
-
-                                            let userHtml = `
-                                                <div class="user" data-email="${esc(email)}">
-                                                    <div style="display:flex; align-items:center; flex:1; min-width:0;">
-                                                        <div class="profile-wrapper">
-                                                            <div class="profile" style="background: ${isOnline ? '' : 'var(--text-muted)'}">${esc(profileInitial)}</div>
-                                                            <span class="online-dot" style="display: block; background: ${statusColor};"></span>
-                                                        </div>
-                                                        <div class="details">
-                                                            <h3>${esc(username)}</h3>
-                                                            <p class="status-text" style="color: ${statusColor}; font-size: 11px;">${isOnline ? 'online' : 'offline'}</p>
-                                                        </div>
-                                                    </div>
-                                                    <button id="addBtn-${esc(email)}" onclick="sendFriendRequest('${esc(email)}', this)" class="add-friend-btn">Add Friend</button>
-                                                </div>
-                                            `;
-                                            userList.innerHTML += userHtml;
-                                        });
-
-                                        if (addedUsers === 0) {
-                                            userList.innerHTML = '<p style="text-align:center; padding:20px; color: var(--text-secondary);">No other users available.</p>';
-                                        }
-                                    })
-                                    .catch(() => {
-                                        // Fallback: show users without status
-                                        let addedUsers = 0;
-                                        data.forEach(user => {
-                                            let username = user.username || 'Unknown';
-                                            let email = user.useremail || 'No email';
-                                            if (email === 'No email' || email === currentUserEmail) return;
-                                            if (userMap.username && username !== 'Unknown' && username === userMap.username) return;
-                                            if (username === currentUserEmail) return;
-                                            addedUsers++;
-                                            let profileInitial = username.charAt(0).toUpperCase();
-                                            userList.innerHTML += `
-                                                <div class="user" data-email="${esc(email)}">
-                                                    <div style="display:flex; align-items:center; flex:1; min-width:0;">
-                                                        <div class="profile-wrapper">
-                                                            <div class="profile">${esc(profileInitial)}</div>
-                                                            <span class="online-dot" style="display: block; background: var(--text-muted);"></span>
-                                                        </div>
-                                                        <div class="details">
-                                                            <h3>${esc(username)}</h3>
-                                                            <p class="status-text" style="color: var(--text-muted); font-size: 11px;">offline</p>
-                                                        </div>
-                                                    </div>
-                                                    <button id="addBtn-${esc(email)}" onclick="sendFriendRequest('${esc(email)}', this)" class="add-friend-btn">Add Friend</button>
-                                                </div>
-                                            `;
-                                        });
-                                        if (addedUsers === 0) {
-                                            userList.innerHTML = '<p style="text-align:center; padding:20px; color: var(--text-secondary);">No other users available.</p>';
-                                        }
-                                    });
+                                renderUserList(data);
                             })
                             .catch(error => console.error('Error fetching users:', error));
 
@@ -2548,11 +2501,8 @@
             .then(data => {
                 if (data.status === 'SUCCESS') {
                     currentUsername = data.username;
-                    if (currentUsername !== currentUserEmail) {
-                        document.getElementById('currentUserName').innerText = currentUsername + ' (' + currentUserEmail + ')';
-                    } else {
-                        document.getElementById('currentUserName').innerText = currentUserEmail;
-                    }
+                    userCache[currentUserEmail.toLowerCase().trim()] = currentUsername;
+                    document.getElementById('currentUserName').innerText = currentUsername;
                     let initial = currentUsername.charAt(0).toUpperCase();
                     let profileBtn = document.getElementById('profileBtn');
                     if (profileBtn) profileBtn.innerText = initial;

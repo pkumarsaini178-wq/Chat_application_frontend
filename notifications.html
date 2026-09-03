@@ -286,11 +286,12 @@
                     container.innerHTML = '';
                     if (data.length > 0) {
                         data.forEach(req => {
+                            let senderName = req.senderEmail ? req.senderEmail.split('@')[0] : 'User';
                             container.innerHTML += `
                                 <div class="notification-card">
                                     <div class="notif-info">
                                         <h4>Friend Request</h4>
-                                        <p>From: <b>${esc(req.senderEmail)}</b></p>
+                                        <p>From: <b>${esc(senderName)}</b></p>
                                     </div>
                                     <div class="btn-group">
                                         <button class="btn btn-accept" onclick="acceptRequest(${req.id})">Accept</button>

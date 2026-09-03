@@ -110,20 +110,34 @@
                 credentials: 'include'
             })
             .then(res => {
-                if (res.redirected) {
-                    window.location.href = res.url;
-                } else if (res.ok) {
-                    window.location.href = '/login.html?success=Account+created+successfully!+Please+sign+in.';
+                const targetUrl = res.url || '';
+                // Extract and show exact error message from backend URL query param if present
+                if (targetUrl.includes('error=')) {
+                    try {
+                        const urlObj = new URL(targetUrl);
+                        const errorMsg = urlObj.searchParams.get("error");
+                        if (errorMsg) {
+                            errDiv.innerText = decodeURIComponent(errorMsg.replace(/\+/g, ' '));
+                            errDiv.style.display = 'block';
+                            return;
+                        }
+                    } catch (err) {}
+                }
+                
+                if (targetUrl.includes('/login.html') || (res.ok && !targetUrl.includes('sign_up.html'))) {
+                    // Backend created account & redirected to login page!
+                    window.location.href = '/login.html?success=' + encodeURIComponent('Account created successfully! Please sign in.');
+                } else if (!res.ok) {
+                    errDiv.innerText = 'Server Error (' + res.status + ' ' + (res.statusText || 'Error') + '). Please try again.';
+                    errDiv.style.display = 'block';
                 } else {
-                    const errDiv = document.getElementById("errorMessage");
-                    errDiv.innerText = 'Signup failed. Please try again.';
+                    errDiv.innerText = 'Signup failed: Backend did not complete registration.';
                     errDiv.style.display = 'block';
                 }
             })
             .catch(err => {
                 console.error('Signup error:', err);
-                const errDiv = document.getElementById("errorMessage");
-                errDiv.innerText = 'Unable to connect to server. Please try again.';
+                errDiv.innerText = 'Network Connection Error: ' + err.message;
                 errDiv.style.display = 'block';
             });
         });
