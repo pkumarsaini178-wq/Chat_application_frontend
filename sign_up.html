@@ -85,9 +85,12 @@
 
         const getBackendUrl = () => {
             if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-                return 'http://localhost:8080';
+                if (window.location.port !== '8080' && window.location.port !== '') {
+                    return 'http://localhost:8080';
+                }
+                return '';
             }
-            return '';
+            return 'https://chat-backend-i0ri.onrender.com';
         };
 
         // Handle Signup Form via fetch to prevent 404 redirect issues

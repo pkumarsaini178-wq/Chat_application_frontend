@@ -63,8 +63,9 @@
                 if (window.location.port !== '8080' && window.location.port !== '') {
                     return 'http://localhost:8080';
                 }
+                return '';
             }
-            return '';
+            return 'https://chat-backend-i0ri.onrender.com';
         };
 
         // Check if user is already logged in
