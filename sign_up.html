@@ -111,7 +111,6 @@
             })
             .then(res => {
                 const targetUrl = res.url || '';
-                // Extract and show exact error message from backend URL query param if present
                 if (targetUrl.includes('error=')) {
                     try {
                         const urlObj = new URL(targetUrl);
@@ -119,19 +118,32 @@
                         if (errorMsg) {
                             errDiv.innerText = decodeURIComponent(errorMsg.replace(/\+/g, ' '));
                             errDiv.style.display = 'block';
-                            return;
+                            return null;
                         }
                     } catch (err) {}
                 }
                 
+                const contentType = res.headers.get("content-type");
+                if (contentType && contentType.indexOf("application/json") !== -1) {
+                    return res.json();
+                }
+                
                 if (targetUrl.includes('/login.html') || (res.ok && !targetUrl.includes('sign_up.html'))) {
-                    // Backend created account & redirected to login page!
-                    window.location.href = '/login.html?success=' + encodeURIComponent('Account created successfully! Please sign in.');
-                } else if (!res.ok) {
-                    errDiv.innerText = 'Server Error (' + res.status + ' ' + (res.statusText || 'Error') + '). Please try again.';
-                    errDiv.style.display = 'block';
+                    return { status: 'SUCCESS', message: 'Account created successfully! Please sign in.' };
+                }
+                
+                if (!res.ok) {
+                    return { status: 'ERROR', message: 'Server Error (' + res.status + ' ' + (res.statusText || 'Error') + ')' };
+                }
+                return { status: 'SUCCESS', message: 'Account created successfully! Please sign in.' };
+            })
+            .then(data => {
+                if (!data) return;
+                if (data.status === 'SUCCESS' || data.redirect) {
+                    let msg = data.message || 'Account created successfully! Please sign in.';
+                    window.location.href = '/login.html?success=' + encodeURIComponent(msg);
                 } else {
-                    errDiv.innerText = 'Signup failed: Backend did not complete registration.';
+                    errDiv.innerText = data.message || 'Signup failed. Please try again.';
                     errDiv.style.display = 'block';
                 }
             })
