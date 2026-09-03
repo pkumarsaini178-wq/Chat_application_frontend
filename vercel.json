@@ -2,35 +2,35 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://chat-backend-qncv.onrender.com/api/:path*"
+      "destination": "https://chat-backend-i0ri.onrender.com/api/:path*"
     },
     {
       "source": "/loginpage",
-      "destination": "https://chat-backend-qncv.onrender.com/loginpage"
+      "destination": "https://chat-backend-i0ri.onrender.com/loginpage"
     },
     {
       "source": "/siginpage",
-      "destination": "https://chat-backend-qncv.onrender.com/siginpage"
+      "destination": "https://chat-backend-i0ri.onrender.com/siginpage"
     },
     {
       "source": "/send-otp",
-      "destination": "https://chat-backend-qncv.onrender.com/send-otp"
+      "destination": "https://chat-backend-i0ri.onrender.com/send-otp"
     },
     {
       "source": "/verify-otp",
-      "destination": "https://chat-backend-qncv.onrender.com/verify-otp"
+      "destination": "https://chat-backend-i0ri.onrender.com/verify-otp"
     },
     {
       "source": "/setpassword",
-      "destination": "https://chat-backend-qncv.onrender.com/setpassword"
+      "destination": "https://chat-backend-i0ri.onrender.com/setpassword"
     },
     {
       "source": "/logout",
-      "destination": "https://chat-backend-qncv.onrender.com/logout"
+      "destination": "https://chat-backend-i0ri.onrender.com/logout"
     },
     {
       "source": "/active-users",
-      "destination": "https://chat-backend-qncv.onrender.com/active-users"
+      "destination": "https://chat-backend-i0ri.onrender.com/active-users"
     },
     {
       "source": "/",
