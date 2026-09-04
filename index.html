@@ -2,13 +2,33 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="refresh" content="0; url=login.html">
-    <script>
-        window.location.href = "login.html";
-    </script>
     <title>Redirecting...</title>
+    <script>
+        function isTokenExpired(token) {
+            if (!token) return true;
+            try {
+                const payloadBase64 = token.split('.')[1];
+                if (!payloadBase64) return true;
+                const base64 = payloadBase64.replace(/-/g, '+').replace(/_/g, '/');
+                const decodedPayload = JSON.parse(atob(base64));
+                if (!decodedPayload.exp) return false;
+                const currentTime = Math.floor(Date.now() / 1000);
+                return currentTime >= decodedPayload.exp;
+            } catch (e) {
+                return true;
+            }
+        }
+
+        const token = localStorage.getItem('jwtToken');
+        if (token && !isTokenExpired(token)) {
+            window.location.href = "homepage.html";
+        } else {
+            if (token) localStorage.removeItem('jwtToken');
+            window.location.href = "login.html";
+        }
+    </script>
 </head>
 <body>
-    <p>Redirecting to <a href="login.html">login.html</a>...</p>
+    <p>Redirecting...</p>
 </body>
 </html>

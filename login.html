@@ -58,6 +58,21 @@
     </div>
 
     <script>
+        function isTokenExpired(token) {
+            if (!token) return true;
+            try {
+                const payloadBase64 = token.split('.')[1];
+                if (!payloadBase64) return true;
+                const base64 = payloadBase64.replace(/-/g, '+').replace(/_/g, '/');
+                const decodedPayload = JSON.parse(atob(base64));
+                if (!decodedPayload.exp) return false;
+                const currentTime = Math.floor(Date.now() / 1000);
+                return currentTime >= decodedPayload.exp;
+            } catch (e) {
+                return true;
+            }
+        }
+
         const getBackendUrl = () => {
             if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
                 if (window.location.port !== '8080' && window.location.port !== '') {
@@ -68,20 +83,17 @@
             return 'https://chat-backend-vjax.onrender.com';
         };
 
-        // Check if user is already logged in
-        fetch(getBackendUrl() + '/api/current-user', { credentials: 'include' })
-            .then(res => {
-                if (res.ok) return res.json();
-                throw new Error('Not authenticated');
-            })
-            .then(userMap => {
-                if (userMap.email) {
-                    window.location.href = '/homepage.html';
-                }
-            })
-            .catch(err => {
-                console.log('Not logged in:', err.message);
-            });
+        // Check if user is already logged in via stored JWT token
+        const savedToken = localStorage.getItem('jwtToken');
+        if (savedToken) {
+            if (isTokenExpired(savedToken)) {
+                console.log('JWT Token is expired. Clearing token.');
+                localStorage.removeItem('jwtToken');
+            } else {
+                console.log('Valid JWT Token found. Bypassing login page...');
+                window.location.href = '/homepage.html';
+            }
+        }
 
         const params = new URLSearchParams(window.location.search);
         const error = params.get("error");
