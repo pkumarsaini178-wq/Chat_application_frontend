@@ -2146,9 +2146,15 @@
             document.getElementById('chatInputArea').style.display = 'none';
             fetch('/api/user/online', { method: 'POST' }).catch(function() {});
             connectWebSocket();
-            fetch('/api/current-user')
+            let savedToken = localStorage.getItem('jwtToken');
+            let authHeaders = savedToken ? { 'Authorization': 'Bearer ' + savedToken } : {};
+            fetch('/api/current-user', { headers: authHeaders })
                 .then(res => {
-                    if (!res.ok) throw new Error('Unauthenticated');
+                    if (!res.ok) {
+                        localStorage.removeItem('jwtToken');
+                        window.location.href = '/login.html';
+                        throw new Error('Unauthenticated');
+                    }
                     return res.json();
                 })
                 .then(userMap => {
@@ -2195,6 +2201,7 @@
 
         function logoutUser() {
             if (confirm("Are you sure you want to log out?")) {
+                localStorage.removeItem('jwtToken');
                 if (stompClient && stompClient.connected) {
                     try {
                         stompClient.disconnect(function() {

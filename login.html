@@ -144,6 +144,9 @@
                     }
 
                     if (res.ok || (data && data.status === 'SUCCESS') || targetUrl.includes('/homepage.html')) {
+                        if (data && data.token) {
+                            localStorage.setItem('jwtToken', data.token);
+                        }
                         window.location.href = (data && data.redirect) ? data.redirect : '/homepage.html';
                         return;
                     }
