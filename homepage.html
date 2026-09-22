@@ -452,9 +452,13 @@
                 return;
             }
 
+            let seenUserEmails = new Set();
             let filteredUsers = data.filter(user => {
                 if (!user || !user.useremail) return false;
-                if (currentUserEmail && user.useremail.toLowerCase() === currentUserEmail.toLowerCase()) return false;
+                let clean = user.useremail.toLowerCase().trim();
+                if (currentUserEmail && clean === currentUserEmail.toLowerCase().trim()) return false;
+                if (seenUserEmails.has(clean)) return false;
+                seenUserEmails.add(clean);
                 return true;
             });
 
@@ -611,7 +615,9 @@
             if (!email) return 'Unknown';
             let clean = email.toLowerCase().trim();
             if (userCache[clean]) return userCache[clean];
-            return email.split('@')[0];
+            let prefix = clean.split('@')[0];
+            if (userCache[prefix]) return userCache[prefix];
+            return prefix;
         }
 
         function authenticatedFetch(url, options = {}) {
@@ -1243,34 +1249,79 @@
                 .then(res => res.json())
                 .then(data => {
                     let friendList = document.getElementById("friendList");
+                    if (!friendList) return;
                     friendList.innerHTML = '';
-                    if (data.length === 0) {
+                    if (!Array.isArray(data) || data.length === 0) {
                         friendList.innerHTML = '<p style="text-align:center; padding:20px; color: var(--text-secondary);">No friends yet. Add friends to start chatting.</p>';
                         return;
                     }
-                    let statusPromises = [];
-                    data.forEach(conn => {
-                        let friendEmail = conn.user1Email === currentUserEmail ? conn.user2Email : conn.user1Email;
-                        statusPromises.push(
-                            fetch('/api/user/status/' + encodeURIComponent(friendEmail))
-                                .then(res => res.json())
-                                .then(status => ({ email: friendEmail, isOnline: status.isOnline }))
-                                .catch(() => ({ email: friendEmail, isOnline: false }))
-                        );
+
+                    let seenFriends = new Set();
+                    let uniqueFriends = [];
+
+                    data.forEach(item => {
+                        let friendEmail = item.friendEmail || (item.user1Email === currentUserEmail ? item.user2Email : item.user1Email);
+                        if (!friendEmail) return;
+                        let cleanEmail = friendEmail.toLowerCase().trim();
+                        let emailPrefix = cleanEmail.split('@')[0];
+                        
+                        // Deduplicate by both full email and email prefix so pkumarsaini178 and pkumarsaini178@gmail.com are considered same friend
+                        let friendName = item.friendName || getUsername(friendEmail);
+                        let dedupeKey = cleanEmail;
+                        if (seenFriends.has(cleanEmail) || (emailPrefix && seenFriends.has(emailPrefix))) {
+                            return;
+                        }
+                        seenFriends.add(cleanEmail);
+                        if (emailPrefix) seenFriends.add(emailPrefix);
+
+                        if (friendName) {
+                            userCache[cleanEmail] = friendName;
+                            if (emailPrefix) {
+                                userCache[emailPrefix] = friendName;
+                            }
+                        }
+
+                        uniqueFriends.push({
+                            connectionId: item.connectionId || item.id,
+                            friendEmail: friendEmail,
+                            friendName: friendName,
+                            isOnline: item.isOnline || false,
+                            lastSeen: item.lastSeen || null
+                        });
                     });
+
+                    if (uniqueFriends.length === 0) {
+                        friendList.innerHTML = '<p style="text-align:center; padding:20px; color: var(--text-secondary);">No friends yet. Add friends to start chatting.</p>';
+                        return;
+                    }
+
+                    let statusPromises = uniqueFriends.map(f => {
+                        return fetch('/api/user/status/' + encodeURIComponent(f.friendEmail))
+                            .then(res => res.ok ? res.json() : {})
+                            .then(status => ({
+                                email: f.friendEmail,
+                                isOnline: status.isOnline !== undefined ? status.isOnline : f.isOnline,
+                                lastSeen: status.lastSeen || f.lastSeen
+                            }))
+                            .catch(() => ({ email: f.friendEmail, isOnline: f.isOnline, lastSeen: f.lastSeen }));
+                    });
+
                     Promise.all(statusPromises).then(statuses => {
                         let statusMap = {};
-                        statuses.forEach(s => { statusMap[s.email] = s.isOnline; });
-                        data.forEach(conn => {
-                            let friendEmail = conn.user1Email === currentUserEmail ? conn.user2Email : conn.user1Email;
-                            let isOnline = statusMap[friendEmail] || false;
-                            let friendName = getUsername(friendEmail);
-                            let profileInitial = friendName.charAt(0).toUpperCase();
+                        statuses.forEach(s => { statusMap[s.email.toLowerCase().trim()] = s; });
+
+                        friendList.innerHTML = '';
+                        uniqueFriends.forEach(f => {
+                            let cleanEmail = f.friendEmail.toLowerCase().trim();
+                            let s = statusMap[cleanEmail] || { isOnline: f.isOnline, lastSeen: f.lastSeen };
+                            let isOnline = s.isOnline || false;
+                            let friendName = f.friendName || getUsername(f.friendEmail);
+                            let profileInitial = friendName ? friendName.charAt(0).toUpperCase() : 'U';
                             let statusColor = isOnline ? 'var(--status-online)' : 'var(--status-offline)';
                             let statusText = isOnline ? 'online' : 'offline';
 
                             let friendHtml = `
-                                <div class="user" onclick="openChat(${conn.id}, '${esc(friendEmail)}')" data-email="${esc(friendEmail)}">
+                                <div class="user" onclick="openChat(${f.connectionId}, '${esc(f.friendEmail)}', '${esc(friendName)}')" data-email="${esc(f.friendEmail)}">
                                     <div class="profile-wrapper">
                                         <div class="profile" style="background: ${isOnline ? 'var(--primary-gradient)' : 'var(--text-muted)'}">${esc(profileInitial)}</div>
                                         <span class="online-dot" style="display: block; background: ${statusColor};"></span>
@@ -1284,6 +1335,9 @@
                             friendList.innerHTML += friendHtml;
                         });
                     });
+                })
+                .catch(err => {
+                    console.error('Error loading friends:', err);
                 });
         }
 
@@ -1330,7 +1384,7 @@
             }
         }
 
-        function openChat(connectionId, friendEmail) {
+        function openChat(connectionId, friendEmail, friendName) {
             currentChatConnectionId = connectionId;
             currentFriendEmail = friendEmail;
             
@@ -1340,8 +1394,8 @@
             isCurrentlyTyping = false;
             if (typingTimeoutId) clearTimeout(typingTimeoutId);
 
-            let friendName = getUsername(friendEmail);
-            document.getElementById('chatHeader').innerHTML = esc(friendName) + ' <span id="friendStatus" style="font-size:13px; font-weight:normal; color: var(--text-secondary);"></span>';
+            let displayName = friendName || getUsername(friendEmail);
+            document.getElementById('chatHeader').innerHTML = esc(displayName) + ' <span id="friendStatus" style="font-size:13px; font-weight:normal; color: var(--text-secondary);"></span>';
             document.getElementById('chatHistory').style.display = 'flex';
             document.getElementById('chatInputArea').style.display = 'flex';
             document.getElementById('chatSettings').style.display = 'block';
