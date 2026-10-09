@@ -90,7 +90,7 @@
                 }
                 return '';
             }
-            return 'https://chat-backend-vjax.onrender.com';
+            return 'https://chat-backend-frs4.onrender.com';
         };
 
         // Handle Signup Form via fetch to prevent 404 redirect issues
@@ -109,7 +109,7 @@
             }
 
             const formData = new FormData(this);
-            let urlsToTry = ['/siginpage', 'https://chat-backend-vjax.onrender.com/siginpage'];
+            let urlsToTry = ['/siginpage', 'https://chat-backend-frs4.onrender.com/siginpage'];
             if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
                 urlsToTry = ['http://localhost:8080/siginpage', '/siginpage'];
             }
